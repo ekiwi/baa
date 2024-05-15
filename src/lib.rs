@@ -1,14 +1,12 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+// Copyright 2023-2024 The Regents of the University of California
+// released under BSD 3-Clause License
+// author: Kevin Laeufer <laeufer@berkeley.edu>
+mod value;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// This type restricts the maximum width that a bit-vector type is allowed to have.
+pub type WidthInt = u32;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+/// Word size for values.
+pub type Word = u64;
+
+pub use value::Value;
