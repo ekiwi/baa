@@ -9,4 +9,4 @@ pub type WidthInt = u32;
 /// Word size for values.
 pub type Word = u64;
 
-pub use value::Value;
+pub use value::{Value, ValueIndexed, ValueMutRef, ValueOwned, ValueRef, ValueStorage};

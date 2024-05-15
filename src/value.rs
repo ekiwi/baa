@@ -8,18 +8,56 @@ use smallvec::SmallVec;
 type ValueVec = SmallVec<[Word; 1]>;
 
 /// Owned value.
-pub struct Value {
+pub struct ValueOwned {
     width: WidthInt,
     words: ValueVec,
 }
 
+pub struct ValueRef<'a> {
+    width: WidthInt,
+    words: &'a [Word],
+}
+
+pub struct ValueMutRef<'a> {
+    width: WidthInt,
+    words: &'a mut [Word],
+}
+
+type WordIndex = u32;
+
+pub struct ValueIndexed {
+    width: WidthInt,
+    index: WordIndex,
+}
+
+pub trait ValueStorage {
+    fn words(&self, index: WordIndex) -> &[Word];
+    fn words_mut(&mut self, index: WordIndex) -> &mut [Word];
+}
+
+impl ValueIndexed {
+    pub fn as_ref<'a>(&self, storage: &'a impl ValueStorage) -> ValueRef<'a> {
+        ValueRef {
+            width: self.width,
+            words: storage.words(self.index),
+        }
+    }
+
+    pub fn as_mut<'a>(&self, storage: &'a mut impl ValueStorage) -> ValueMutRef<'a> {
+        ValueMutRef {
+            width: self.width,
+            words: storage.words_mut(self.index),
+        }
+    }
+}
+
 /// Abstracts over values no matter how they are stored.
-trait ValueKind {
+pub trait Value {
     fn width(&self) -> WidthInt;
     fn words(&self) -> &[Word];
 }
 
-impl ValueKind for Value {
+impl Value for ValueOwned {
     fn width(&self) -> WidthInt {
         self.width
     }
