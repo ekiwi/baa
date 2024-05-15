@@ -1,0 +1,13 @@
+[package]
+name = "baa"
+version = "0.1.0"
+edition = "2021"
+authors = ["Kevin Laeufer <laeufer@berkeley.edu>"]
+description = "BitVector and Array Arithmetic"
+repository = "https://github.com/ekiwi/baa"
+license = "BSD-3-Clause"
+include = ["Cargo.toml", "LICENSE", "src/", "Readme.md]
+keywords = ["bitvector", "array", "arithmetic"]
+
+
+[dependencies]
