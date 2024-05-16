@@ -57,6 +57,11 @@ pub trait Value {
     fn words(&self) -> &[Word];
 }
 
+/// Abstracts over mutabkle values no matter how they are stored.
+pub trait ValueMut: Value {
+    fn words_mut(&mut self) -> &mut [Word];
+}
+
 impl Value for ValueOwned {
     fn width(&self) -> WidthInt {
         self.width
@@ -64,5 +69,37 @@ impl Value for ValueOwned {
 
     fn words(&self) -> &[Word] {
         &self.words
+    }
+}
+
+impl ValueMut for ValueOwned {
+    fn words_mut(&mut self) -> &mut [Word] {
+        &mut self.words
+    }
+}
+
+impl<'a> Value for ValueRef<'a> {
+    fn width(&self) -> WidthInt {
+        self.width
+    }
+
+    fn words(&self) -> &[Word] {
+        self.words
+    }
+}
+
+impl<'a> Value for ValueMutRef<'a> {
+    fn width(&self) -> WidthInt {
+        self.width
+    }
+
+    fn words(&self) -> &[Word] {
+        self.words
+    }
+}
+
+impl<'a> ValueMut for ValueMutRef<'a> {
+    fn words_mut(&mut self) -> &mut [Word] {
+        self.words
     }
 }
