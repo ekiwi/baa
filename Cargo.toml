@@ -11,8 +11,12 @@ keywords = ["bitvector", "array", "arithmetic"]
 readme = "Readme.md"
 
 [dependencies]
+num-bigint = { version = "0.4.5", optional = true}
 smallvec = "1.13.2"
 thiserror = "1.0.60"
 
 [dev-dependencies]
 proptest = "1.4.0"
+
+[features]
+bigint = ["dep:num-bigint"]

@@ -3,4 +3,6 @@
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 //
 // methods to convert to/from Value
+#[cfg(feature = "bigint")]
+mod bigint;
 mod strings;
