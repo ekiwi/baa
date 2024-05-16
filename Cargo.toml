@@ -13,3 +13,6 @@ readme = "Readme.md"
 [dependencies]
 smallvec = "1.13.2"
 thiserror = "1.0.60"
+
+[dev-dependencies]
+proptest = "1.4.0"
