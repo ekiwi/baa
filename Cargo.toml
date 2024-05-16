@@ -21,4 +21,5 @@ thiserror = "1.0.60"
 proptest = "1.4.0"
 
 [features]
+default = []
 bigint = ["dep:num-bigint"]
