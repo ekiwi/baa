@@ -20,6 +20,7 @@ jobs:
         features:
           - default
           - bigint
+          - bitvec1
 
     steps:
     - name: Update Rust to ${{ matrix.toolchain }}

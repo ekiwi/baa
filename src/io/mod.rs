@@ -6,3 +6,6 @@
 #[cfg(feature = "bigint")]
 pub(crate) mod bigint;
 pub(crate) mod strings;
+
+#[cfg(feature = "bitvec1")]
+pub(crate) mod bitvec;
