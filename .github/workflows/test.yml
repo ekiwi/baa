@@ -18,8 +18,8 @@ jobs:
           - beta
           - nightly
         features:
-          - ""
-          - "bigint"
+          - default
+          - bigint
 
     steps:
     - name: Update Rust to ${{ matrix.toolchain }}
