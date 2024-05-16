@@ -1,0 +1,51 @@
+name: baa Tests
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
+        features:
+          - ""
+          - "bigint"
+
+    steps:
+    - name: Update Rust to ${{ matrix.toolchain }}
+      run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --verbose --features ${{ matrix.features }}
+    - name: Run tests
+      run: cargo test --verbose --features ${{ matrix.features }}
+
+  semver:
+    name: Check Semantic Versioning
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+
+  msrv:
+    name: Check Minimum Rust Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-msrv
+      - name: Check MSRV
+        run: cargo msrv verify
+

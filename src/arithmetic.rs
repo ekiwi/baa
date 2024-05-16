@@ -2,9 +2,8 @@
 // released under BSD 3-Clause License
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 
-use crate::{ValueOwned, WidthInt, Word};
+use crate::{WidthInt, Word};
 use std::cmp::Ordering;
-use std::ops::Range;
 
 // TODO: make sure this is updated together with the Word type
 type DoubleWord = u128;

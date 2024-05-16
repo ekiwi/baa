@@ -3,7 +3,6 @@
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 //
 
-use crate::io::strings::{from_bit_str, to_bit_str};
 use crate::{WidthInt, Word};
 use std::cmp::Ordering;
 
@@ -92,6 +91,27 @@ fn iter_to_word(iter: impl Iterator<Item = Word>, width: WidthInt, out: &mut [Wo
     }
 }
 
+pub(crate) fn count_big_uint_bits(value: &num_bigint::BigUint) -> WidthInt {
+    let words = value.iter_u64_digits().count() as u32;
+    if words == 0 {
+        0
+    } else {
+        let msb = value.iter_u64_digits().last().unwrap();
+        words * Word::BITS - msb.leading_zeros()
+    }
+}
+
+pub(crate) fn count_big_int_bits(value: &num_bigint::BigInt) -> WidthInt {
+    let words = value.iter_u64_digits().count() as u32;
+    // +1 for the sign bit
+    if words == 0 {
+        1
+    } else {
+        let msb = value.iter_u64_digits().last().unwrap();
+        words * Word::BITS - msb.leading_zeros() + 1
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,13 +120,7 @@ mod tests {
     use std::str::FromStr;
 
     fn do_test_from_to_big_int(value: &BigInt) {
-        let words = value.iter_u64_digits().count() as u32;
-        let bits = if words == 0 {
-            0
-        } else {
-            let msb = value.iter_u64_digits().last().unwrap();
-            words * Word::BITS - msb.leading_zeros() + 1 // +1 for the sign bit
-        };
+        let bits = count_big_int_bits(value);
         let mut out = vec![0; bits.div_ceil(Word::BITS) as usize];
         from_big_int(value, bits as WidthInt, &mut out);
         let value_out = to_big_int(&out, bits as WidthInt);
@@ -114,13 +128,7 @@ mod tests {
     }
 
     fn do_test_from_to_big_uint(value: &BigUint) {
-        let words = value.iter_u64_digits().count() as u32;
-        let bits = if words == 0 {
-            0
-        } else {
-            let msb = value.iter_u64_digits().last().unwrap();
-            words * Word::BITS - msb.leading_zeros()
-        };
+        let bits = count_big_uint_bits(value);
         let mut out = vec![0; bits.div_ceil(Word::BITS) as usize];
         from_big_uint(value, bits as WidthInt, &mut out);
         let value_out = to_big_uint(&out);
