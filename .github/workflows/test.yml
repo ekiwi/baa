@@ -21,6 +21,7 @@ jobs:
           - default
           - bigint
           - bitvec1
+          - bigint,bitvec
 
     steps:
     - name: Update Rust to ${{ matrix.toolchain }}
