@@ -43,6 +43,14 @@ impl ValueOwned {
         }
     }
 
+    pub fn from_bool(value: bool) -> Self {
+        if value {
+            Self::tru()
+        } else {
+            Self::fals()
+        }
+    }
+
     pub fn from_bytes_le(bytes: &[u8], bits: WidthInt) -> Self {
         let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
         crate::io::bytes::from_bytes_le(bytes, bits, words.as_mut());
@@ -215,6 +223,41 @@ macro_rules! declare_arith_bin_fn {
     };
 }
 
+/// Declares a bitwise function which takes in two equal size bitvector and yields a
+/// bitvector of the same size.
+macro_rules! declare_bit_arith_bin_fn {
+    ($name:ident) => {
+        fn $name<R: BitVecValue>(&self, rhs: &R) -> ValueOwned {
+        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(self.words().len(), rhs.words().len());
+        if self.words().len() == 1 {
+            // specialized for 1-word case
+            let mut out = [0];
+            crate::arithmetic::$name(
+                &mut out,
+                self.words(),
+                rhs.words(),
+            );
+            ValueOwned {
+                width: self.width(),
+                words: SmallVec::from_buf(out),
+            }
+        } else {
+            let mut out = smallvec![0; self.words().len()];
+            crate::arithmetic::$name(
+                out.as_mut(),
+                self.words(),
+                rhs.words(),
+            );
+            ValueOwned {
+                width: self.width(),
+                words: out,
+            }
+        }
+    }
+    };
+}
+
 /// Abstracts over values no matter how they are stored.
 pub trait BitVecValue {
     fn width(&self) -> WidthInt;
@@ -269,6 +312,110 @@ pub trait BitVecValue {
     declare_arith_bin_fn!(shift_left);
     declare_arith_bin_fn!(shift_right);
     declare_arith_bin_fn!(arithmetic_shift_right);
+    declare_bit_arith_bin_fn!(and);
+    declare_bit_arith_bin_fn!(or);
+    declare_bit_arith_bin_fn!(xor);
+
+    fn is_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(self.words().len(), rhs.words().len());
+        if self.words().len() == 1 {
+            // specialized for 1-word case
+            crate::arithmetic::cmp_equal(self.words(), rhs.words())
+        } else {
+            crate::arithmetic::cmp_equal(self.words(), rhs.words())
+        }
+    }
+
+    fn is_not_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        !self.is_equal(rhs)
+    }
+
+    fn is_greater<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(self.words().len(), rhs.words().len());
+        if self.words().len() == 1 {
+            // specialized for 1-word case
+            crate::arithmetic::cmp_greater(self.words(), rhs.words())
+        } else {
+            crate::arithmetic::cmp_greater(self.words(), rhs.words())
+        }
+    }
+
+    fn is_greater_or_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(self.words().len(), rhs.words().len());
+        if self.words().len() == 1 {
+            // specialized for 1-word case
+            crate::arithmetic::cmp_greater_equal(self.words(), rhs.words())
+        } else {
+            crate::arithmetic::cmp_greater(self.words(), rhs.words())
+        }
+    }
+
+    fn is_less<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        // a < b <=> b > a
+        rhs.is_greater(self)
+    }
+
+    fn is_less_or_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        // a <= b <=> b >= a
+        rhs.is_greater_or_equal(self)
+    }
+
+    fn is_greater_signed<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(self.words().len(), rhs.words().len());
+        if self.words().len() == 1 {
+            // specialized for 1-word case
+            crate::arithmetic::cmp_greater_signed(
+                self.words(),
+                rhs.words(),
+                self.width(),
+            )
+        } else {
+            crate::arithmetic::cmp_greater_signed(
+                self.words(),
+                rhs.words(),
+                self.width(),
+            )
+        }
+    }
+
+    fn is_greater_or_equal_signed<R: BitVecValue + ?Sized>(
+        &self,
+        rhs: &R,
+    ) -> bool {
+        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(self.words().len(), rhs.words().len());
+        if self.words().len() == 1 {
+            // specialized for 1-word case
+            crate::arithmetic::cmp_greater_equal_signed(
+                self.words(),
+                rhs.words(),
+                self.width(),
+            )
+        } else {
+            crate::arithmetic::cmp_greater_equal_signed(
+                self.words(),
+                rhs.words(),
+                self.width(),
+            )
+        }
+    }
+
+    fn is_less_signed<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+        // a < b <=> b > a
+        rhs.is_greater_signed(self)
+    }
+
+    fn is_less_or_equal_signed<R: BitVecValue + ?Sized>(
+        &self,
+        rhs: &R,
+    ) -> bool {
+        // a <= b <=> b >= a
+        rhs.is_greater_or_equal_signed(self)
+    }
 }
 
 /// Abstracts over mutabkle values no matter how they are stored.
