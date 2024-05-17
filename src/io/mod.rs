@@ -9,4 +9,4 @@ pub(crate) mod strings;
 
 #[cfg(feature = "bitvec1")]
 pub(crate) mod bitvec;
-mod bytes;
+pub(crate) mod bytes;

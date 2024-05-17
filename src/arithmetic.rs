@@ -246,13 +246,13 @@ pub(crate) fn shift_right(
     a: &[Word],
     b: &[Word],
     width: WidthInt,
-) {
+) -> Option<WidthInt> {
     // clear the destination
     clear(dst);
 
     // check to see if we are shifting for more than our width
     let shift_amount = match get_shift_amount(b, width) {
-        None => return,
+        None => return None,
         Some(value) => value,
     };
 
@@ -262,6 +262,31 @@ pub(crate) fn shift_right(
     let result_width = hi - lo + 1;
     let result_words = result_width.div_ceil(Word::BITS) as usize;
     slice(&mut dst[..result_words], a, hi, lo);
+    Some(shift_amount)
+}
+
+#[inline]
+pub(crate) fn arithmetic_shift_right(
+    dst: &mut [Word],
+    a: &[Word],
+    b: &[Word],
+    width: WidthInt,
+) {
+    // perform shift
+    let shift_amount = shift_right(dst, a, b, width);
+
+    // pad with sign bit if necessary
+    if is_neg(a, width) {
+        match shift_amount {
+            None => {
+                // over shift => we just need to set everything to 1
+                todo!()
+            }
+            Some(amount) => {
+                todo!()
+            }
+        }
+    }
 }
 
 #[inline]

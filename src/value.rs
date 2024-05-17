@@ -44,11 +44,9 @@ impl ValueOwned {
     }
 
     pub fn from_bytes_le(bytes: &[u8], bits: WidthInt) -> Self {
-        todo!()
-    }
-
-    pub fn to_bytes_le(&self) -> Vec<u8> {
-        todo!()
+        let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
+        crate::io::bytes::from_bytes_le(bytes, bits, words.as_mut());
+        Self { width: bits, words }
     }
 
     pub fn zero(width: WidthInt) -> Self {
@@ -92,34 +90,7 @@ impl<V: BitVecValue> std::ops::Add<&V> for &ValueOwned {
     type Output = ValueOwned;
 
     fn add(self, rhs: &V) -> Self::Output {
-        debug_assert_eq!(self.width, rhs.width());
-        debug_assert_eq!(self.words.len(), rhs.words().len());
-        if self.words.len() == 1 {
-            // specialized for 1-word case
-            let mut out = [0];
-            crate::arithmetic::add(
-                &mut out,
-                self.words.as_slice(),
-                rhs.words(),
-                self.width,
-            );
-            ValueOwned {
-                width: self.width,
-                words: SmallVec::from_buf(out),
-            }
-        } else {
-            let mut out = smallvec![0; self.words.len()];
-            crate::arithmetic::add(
-                out.as_mut(),
-                self.words.as_slice(),
-                rhs.words(),
-                self.width,
-            );
-            ValueOwned {
-                width: self.width,
-                words: out,
-            }
-        }
+        BitVecValue::add(self, rhs)
     }
 }
 
@@ -127,34 +98,7 @@ impl<V: BitVecValue> std::ops::Sub<&V> for &ValueOwned {
     type Output = ValueOwned;
 
     fn sub(self, rhs: &V) -> Self::Output {
-        debug_assert_eq!(self.width, rhs.width());
-        debug_assert_eq!(self.words.len(), rhs.words().len());
-        if self.words.len() == 1 {
-            // specialized for 1-word case
-            let mut out = [0];
-            crate::arithmetic::sub(
-                &mut out,
-                self.words.as_slice(),
-                rhs.words(),
-                self.width,
-            );
-            ValueOwned {
-                width: self.width,
-                words: SmallVec::from_buf(out),
-            }
-        } else {
-            let mut out = smallvec![0; self.words.len()];
-            crate::arithmetic::sub(
-                out.as_mut(),
-                self.words.as_slice(),
-                rhs.words(),
-                self.width,
-            );
-            ValueOwned {
-                width: self.width,
-                words: out,
-            }
-        }
+        BitVecValue::sub(self, rhs)
     }
 }
 
@@ -234,6 +178,43 @@ impl ValueIndexed {
     }
 }
 
+/// Declares an arithmetic function which takes in two equal size bitvector and yields a
+/// bitvector of the same size.
+macro_rules! declare_arith_bin_fn {
+    ($name:ident) => {
+        fn $name<R: BitVecValue>(&self, rhs: &R) -> ValueOwned {
+        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(self.words().len(), rhs.words().len());
+        if self.words().len() == 1 {
+            // specialized for 1-word case
+            let mut out = [0];
+            crate::arithmetic::$name(
+                &mut out,
+                self.words(),
+                rhs.words(),
+                self.width(),
+            );
+            ValueOwned {
+                width: self.width(),
+                words: SmallVec::from_buf(out),
+            }
+        } else {
+            let mut out = smallvec![0; self.words().len()];
+            crate::arithmetic::$name(
+                out.as_mut(),
+                self.words(),
+                rhs.words(),
+                self.width(),
+            );
+            ValueOwned {
+                width: self.width(),
+                words: out,
+            }
+        }
+    }
+    };
+}
+
 /// Abstracts over values no matter how they are stored.
 pub trait BitVecValue {
     fn width(&self) -> WidthInt;
@@ -242,6 +223,10 @@ pub trait BitVecValue {
     /// Convert to a string of 1s and 0s.
     fn to_bit_str(&self) -> String {
         crate::io::strings::to_bit_str(self.words(), self.width())
+    }
+
+    fn to_bytes_le(&self) -> Vec<u8> {
+        crate::io::bytes::to_bytes_le(self.words(), self.width())
     }
 
     #[cfg(feature = "bigint")]
@@ -278,6 +263,12 @@ pub trait BitVecValue {
             None
         }
     }
+
+    declare_arith_bin_fn!(add);
+    declare_arith_bin_fn!(sub);
+    declare_arith_bin_fn!(shift_left);
+    declare_arith_bin_fn!(shift_right);
+    declare_arith_bin_fn!(arithmetic_shift_right);
 }
 
 /// Abstracts over mutabkle values no matter how they are stored.
