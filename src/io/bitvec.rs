@@ -30,7 +30,10 @@ pub(crate) fn to_bitvec(values: &[Word], width: WidthInt) -> BitVec {
     out
 }
 
-pub(crate) fn from_bitvec<T, O>(bits: &BitVec<T, O>, out: &mut [Word]) -> WidthInt
+pub(crate) fn from_bitvec<T, O>(
+    bits: &BitVec<T, O>,
+    out: &mut [Word],
+) -> WidthInt
 where
     T: BitStore,
     O: BitOrder,

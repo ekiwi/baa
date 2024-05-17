@@ -8,10 +8,20 @@ use smallvec::{smallvec, SmallVec};
 type ValueVec = SmallVec<[Word; 1]>;
 
 /// Owned value.
+#[derive(Clone)]
 pub struct ValueOwned {
     width: WidthInt,
     words: ValueVec,
 }
+
+const OWNED_TRUE: ValueOwned = ValueOwned {
+    width: 1,
+    words: SmallVec::from_const([1]),
+};
+const OWNED_FALSE: ValueOwned = ValueOwned {
+    width: 1,
+    words: SmallVec::from_const([1]),
+};
 
 impl ValueOwned {
     /// Parse a string of 1s and 0s. The width of the resulting value is the number of digits.
@@ -25,9 +35,32 @@ impl ValueOwned {
         }
     }
 
+    pub fn from_u64(value: u64, bits: WidthInt) -> Self {
+        debug_assert_eq!(Word::BITS, 64);
+        Self {
+            width: bits as WidthInt,
+            words: smallvec![value],
+        }
+    }
+
+    pub fn from_bytes_le(bytes: &[u8], bits: WidthInt) -> Self {
+        todo!()
+    }
+
+    pub fn to_bytes_le(&self) -> Vec<u8> {
+        todo!()
+    }
+
     pub fn zero(width: WidthInt) -> Self {
         let words = smallvec![0; width.div_ceil(WidthInt::BITS) as usize];
         Self { width, words }
+    }
+
+    pub fn tru() -> Self {
+        OWNED_TRUE
+    }
+    pub fn fals() -> Self {
+        OWNED_FALSE
     }
 
     #[cfg(feature = "bigint")]
@@ -42,6 +75,86 @@ impl ValueOwned {
         let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
         crate::io::bigint::from_big_uint(value, bits, &mut words);
         Self { width: bits, words }
+    }
+}
+
+impl<V: BitVecValue> PartialEq<V> for ValueOwned {
+    fn eq(&self, other: &V) -> bool {
+        debug_assert!(
+            !(other.width() == self.width)
+                || other.words().len() == self.words.len()
+        );
+        other.width() == self.width && other.words() == self.words.as_slice()
+    }
+}
+
+impl<V: BitVecValue> std::ops::Add<&V> for &ValueOwned {
+    type Output = ValueOwned;
+
+    fn add(self, rhs: &V) -> Self::Output {
+        debug_assert_eq!(self.width, rhs.width());
+        debug_assert_eq!(self.words.len(), rhs.words().len());
+        if self.words.len() == 1 {
+            // specialized for 1-word case
+            let mut out = [0];
+            crate::arithmetic::add(
+                &mut out,
+                self.words.as_slice(),
+                rhs.words(),
+                self.width,
+            );
+            ValueOwned {
+                width: self.width,
+                words: SmallVec::from_buf(out),
+            }
+        } else {
+            let mut out = smallvec![0; self.words.len()];
+            crate::arithmetic::add(
+                out.as_mut(),
+                self.words.as_slice(),
+                rhs.words(),
+                self.width,
+            );
+            ValueOwned {
+                width: self.width,
+                words: out,
+            }
+        }
+    }
+}
+
+impl<V: BitVecValue> std::ops::Sub<&V> for &ValueOwned {
+    type Output = ValueOwned;
+
+    fn sub(self, rhs: &V) -> Self::Output {
+        debug_assert_eq!(self.width, rhs.width());
+        debug_assert_eq!(self.words.len(), rhs.words().len());
+        if self.words.len() == 1 {
+            // specialized for 1-word case
+            let mut out = [0];
+            crate::arithmetic::sub(
+                &mut out,
+                self.words.as_slice(),
+                rhs.words(),
+                self.width,
+            );
+            ValueOwned {
+                width: self.width,
+                words: SmallVec::from_buf(out),
+            }
+        } else {
+            let mut out = smallvec![0; self.words.len()];
+            crate::arithmetic::sub(
+                out.as_mut(),
+                self.words.as_slice(),
+                rhs.words(),
+                self.width,
+            );
+            ValueOwned {
+                width: self.width,
+                words: out,
+            }
+        }
     }
 }
 
@@ -110,7 +223,10 @@ impl ValueIndexed {
         }
     }
 
-    pub fn as_mut<'a>(&self, storage: &'a mut impl ValueStorage) -> ValueMutRef<'a> {
+    pub fn as_mut<'a>(
+        &self,
+        storage: &'a mut impl ValueStorage,
+    ) -> ValueMutRef<'a> {
         ValueMutRef {
             width: self.width,
             words: storage.words_mut(self.index),
@@ -119,7 +235,7 @@ impl ValueIndexed {
 }
 
 /// Abstracts over values no matter how they are stored.
-pub trait Value {
+pub trait BitVecValue {
     fn width(&self) -> WidthInt;
     fn words(&self) -> &[Word];
 
@@ -137,10 +253,35 @@ pub trait Value {
     fn to_big_uint(&self) -> num_bigint::BigUint {
         crate::io::bigint::to_big_uint(self.words())
     }
+
+    /// Returns value as a bool iff the value is a 1-bit value.
+    fn to_bool(&self) -> Option<bool> {
+        if self.width() == 1 {
+            debug_assert_eq!(self.words().len(), 1);
+            Some(crate::arithmetic::word_to_bool(self.words()[0]))
+        } else {
+            None
+        }
+    }
+
+    /// Returns the value as a 64-bit unsigned integer iff the width is 64-bit or less.
+    fn to_u64(&self) -> Option<u64> {
+        if self.width() <= 64 {
+            if self.width() == 0 {
+                Some(0)
+            } else {
+                debug_assert_eq!(Word::BITS, 64);
+                debug_assert_eq!(self.words().len(), 0);
+                Some(self.words()[0] as u64)
+            }
+        } else {
+            None
+        }
+    }
 }
 
 /// Abstracts over mutabkle values no matter how they are stored.
-pub trait ValueMut: Value {
+pub trait BitVecValueMut: BitVecValue {
     fn words_mut(&mut self) -> &mut [Word];
 
     fn set_from_word(&mut self, value: Word) {
@@ -168,7 +309,7 @@ pub trait ValueMut: Value {
     }
 }
 
-impl Value for ValueOwned {
+impl BitVecValue for ValueOwned {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -178,13 +319,13 @@ impl Value for ValueOwned {
     }
 }
 
-impl ValueMut for ValueOwned {
+impl BitVecValueMut for ValueOwned {
     fn words_mut(&mut self) -> &mut [Word] {
         &mut self.words
     }
 }
 
-impl<'a> Value for ValueRef<'a> {
+impl<'a> BitVecValue for ValueRef<'a> {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -194,7 +335,7 @@ impl<'a> Value for ValueRef<'a> {
     }
 }
 
-impl<'a> Value for ValueMutRef<'a> {
+impl<'a> BitVecValue for ValueMutRef<'a> {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -204,7 +345,7 @@ impl<'a> Value for ValueMutRef<'a> {
     }
 }
 
-impl<'a> ValueMut for ValueMutRef<'a> {
+impl<'a> BitVecValueMut for ValueMutRef<'a> {
     fn words_mut(&mut self) -> &mut [Word] {
         self.words
     }

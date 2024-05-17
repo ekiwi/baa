@@ -15,4 +15,7 @@ pub type Word = u64;
 pub enum Error {}
 
 use thiserror::Error;
-pub use value::{Value, ValueIndexed, ValueMut, ValueMutRef, ValueOwned, ValueRef, ValueStorage};
+pub use value::{
+    BitVecValue, BitVecValueMut, ValueIndexed, ValueMutRef, ValueOwned,
+    ValueRef, ValueStorage,
+};

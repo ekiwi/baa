@@ -24,7 +24,11 @@ fn words_to_u32(words: &[Word]) -> Vec<u32> {
     words32
 }
 
-pub(crate) fn from_big_uint(value: &num_bigint::BigUint, width: WidthInt, out: &mut [Word]) {
+pub(crate) fn from_big_uint(
+    value: &num_bigint::BigUint,
+    width: WidthInt,
+    out: &mut [Word],
+) {
     iter_to_word(value.iter_u64_digits(), width, out);
 }
 
@@ -38,7 +42,10 @@ fn get_sign(value: &[Word], width: WidthInt) -> num_bigint::Sign {
     }
 }
 
-pub(crate) fn to_big_int(words: &[Word], width: WidthInt) -> num_bigint::BigInt {
+pub(crate) fn to_big_int(
+    words: &[Word],
+    width: WidthInt,
+) -> num_bigint::BigInt {
     if width == 0 {
         return num_bigint::BigInt::ZERO;
     }
@@ -56,7 +63,11 @@ pub(crate) fn to_big_int(words: &[Word], width: WidthInt) -> num_bigint::BigInt 
     num_bigint::BigInt::from_slice(sign, &words32)
 }
 
-pub(crate) fn from_big_int(value: &num_bigint::BigInt, width: WidthInt, out: &mut [Word]) {
+pub(crate) fn from_big_int(
+    value: &num_bigint::BigInt,
+    width: WidthInt,
+    out: &mut [Word],
+) {
     iter_to_word(value.iter_u64_digits(), width, out);
     // negate if sign is minus
     if value.sign() == num_bigint::Sign::Minus {
@@ -66,7 +77,11 @@ pub(crate) fn from_big_int(value: &num_bigint::BigInt, width: WidthInt, out: &mu
 }
 
 #[inline]
-fn iter_to_word(iter: impl Iterator<Item = Word>, width: WidthInt, out: &mut [Word]) {
+fn iter_to_word(
+    iter: impl Iterator<Item = Word>,
+    width: WidthInt,
+    out: &mut [Word],
+) {
     if width == 0 {
         return;
     }
