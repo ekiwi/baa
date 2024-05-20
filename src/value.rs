@@ -83,6 +83,22 @@ impl ValueOwned {
         crate::io::bigint::from_big_uint(value, bits, &mut words);
         Self { width: bits, words }
     }
+
+    #[cfg(feature = "fraction1")]
+    pub fn from_fixed_point(
+        value: &fraction::Fraction,
+        bits: WidthInt,
+        fraction_width: WidthInt,
+    ) -> Self {
+        let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
+        crate::io::fraction::from_fixed_point(
+            value,
+            bits,
+            fraction_width,
+            &mut words,
+        );
+        Self { width: bits, words }
+    }
 }
 
 impl<V: BitVecValue> PartialEq<V> for ValueOwned {
@@ -283,6 +299,30 @@ pub trait BitVecValue {
     #[cfg(feature = "bigint")]
     fn to_big_uint(&self) -> num_bigint::BigUint {
         crate::io::bigint::to_big_uint(self.words())
+    }
+
+    #[cfg(feature = "fraction1")]
+    fn to_signed_fixed_point(
+        &self,
+        fraction_width: WidthInt,
+    ) -> fraction::Fraction {
+        crate::io::fraction::to_signed_fixed_point(
+            self.words(),
+            self.width(),
+            fraction_width,
+        )
+    }
+
+    #[cfg(feature = "fraction1")]
+    fn to_unsigned_fixed_point(
+        &self,
+        fraction_width: WidthInt,
+    ) -> fraction::Fraction {
+        crate::io::fraction::to_unsigned_fixed_point(
+            self.words(),
+            self.width(),
+            fraction_width,
+        )
     }
 
     /// Returns value as a bool iff the value is a 1-bit value.
