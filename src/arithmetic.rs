@@ -357,7 +357,7 @@ pub(crate) fn cmp_greater(a: &[Word], b: &[Word]) -> bool {
 }
 
 #[inline]
-fn is_neg(src: &[Word], width: WidthInt) -> bool {
+pub(crate) fn is_neg(src: &[Word], width: WidthInt) -> bool {
     let msb_bit_id = (width - 1) % WidthInt::BITS;
     let msb_bit_value = (src.last().unwrap() >> msb_bit_id) & 1;
     msb_bit_value == 1

@@ -9,6 +9,7 @@ type ValueVec = SmallVec<[Word; 1]>;
 
 /// Owned value.
 #[derive(Clone)]
+#[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub struct ValueOwned {
     width: WidthInt,
     words: ValueVec,
@@ -301,6 +302,25 @@ pub trait BitVecValue {
                 debug_assert_eq!(Word::BITS, 64);
                 debug_assert_eq!(self.words().len(), 0);
                 Some(self.words()[0] as u64)
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Returns the value as a 64-bit signed integer iff the width is 64-bit or less.
+    fn to_i64(&self) -> Option<i64> {
+        if self.width() <= 64 {
+            if self.width() == 0 {
+                Some(0)
+            } else {
+                debug_assert_eq!(Word::BITS, 64);
+                debug_assert_eq!(self.words().len(), 0);
+                if crate::arithmetic::is_neg(self.words(), self.width()) {
+                    todo!()
+                } else {
+                    Some(self.words()[0] as i64)
+                }
             }
         } else {
             None
