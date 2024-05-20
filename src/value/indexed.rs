@@ -15,25 +15,26 @@ pub struct ValueIndexed {
     index: WordIndex,
 }
 
-pub trait ValueStorage {
-    fn words(&self, index: WordIndex) -> &[Word];
-    fn words_mut(&mut self, index: WordIndex) -> &mut [Word];
+pub struct ValueStorage<'a> {
+    values: &'a [Word],
 }
 
-impl ValueIndexed {
-    pub fn as_ref<'a>(&self, storage: &'a impl ValueStorage) -> BitVecValueRef<'a> {
-        todo!()
-        // BitVecValueRef {
-        //     width: self.width,
-        //     words: storage.words(self.index),
-        // }
-    }
+// impl<'a> From<&'a [Word]> for ValueStorage<'a> {}
 
-    pub fn as_mut<'a>(&self, storage: &'a mut impl ValueStorage) -> BitVecValueMutRef<'a> {
-        todo!()
-        // BitVecValueMutRef {
-        //     width: self.width,
-        //     words: storage.words_mut(self.index),
-        // }
-    }
-}
+// impl ValueIndexed {
+//     pub fn as_ref<'a>(&self, storage: &'a impl ValueStorage) -> BitVecValueRef<'a> {
+//         todo!()
+//         // BitVecValueRef {
+//         //     width: self.width,
+//         //     words: storage.words(self.index),
+//         // }
+//     }
+//
+//     pub fn as_mut<'a>(&self, storage: &'a mut impl ValueStorage) -> BitVecValueMutRef<'a> {
+//         todo!()
+//         // BitVecValueMutRef {
+//         //     width: self.width,
+//         //     words: storage.words_mut(self.index),
+//         // }
+//     }
+// }
