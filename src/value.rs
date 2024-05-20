@@ -7,24 +7,24 @@ use smallvec::{smallvec, SmallVec};
 
 type ValueVec = SmallVec<[Word; 1]>;
 
-/// Owned value.
+/// Owned bit-vector value.
 #[derive(Clone)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
-pub struct ValueOwned {
+pub struct BitVecValue {
     width: WidthInt,
     words: ValueVec,
 }
 
-const OWNED_TRUE: ValueOwned = ValueOwned {
+const OWNED_TRUE: BitVecValue = BitVecValue {
     width: 1,
     words: SmallVec::from_const([1]),
 };
-const OWNED_FALSE: ValueOwned = ValueOwned {
+const OWNED_FALSE: BitVecValue = BitVecValue {
     width: 1,
     words: SmallVec::from_const([1]),
 };
 
-impl ValueOwned {
+impl BitVecValue {
     /// Parse a string of 1s and 0s. The width of the resulting value is the number of digits.
     pub fn from_bit_str(value: &str) -> Self {
         let bits = value.len();
@@ -101,7 +101,7 @@ impl ValueOwned {
     }
 }
 
-impl<V: BitVecValue> PartialEq<V> for ValueOwned {
+impl<V: BitVecOps> PartialEq<V> for BitVecValue {
     fn eq(&self, other: &V) -> bool {
         debug_assert!(
             !(other.width() == self.width)
@@ -111,32 +111,32 @@ impl<V: BitVecValue> PartialEq<V> for ValueOwned {
     }
 }
 
-impl Eq for ValueOwned {}
+impl Eq for BitVecValue {}
 
-impl<V: BitVecValue> std::ops::Add<&V> for &ValueOwned {
-    type Output = ValueOwned;
+impl<V: BitVecOps> std::ops::Add<&V> for &BitVecValue {
+    type Output = BitVecValue;
 
     fn add(self, rhs: &V) -> Self::Output {
-        BitVecValue::add(self, rhs)
+        BitVecOps::add(self, rhs)
     }
 }
 
-impl<V: BitVecValue> std::ops::Sub<&V> for &ValueOwned {
-    type Output = ValueOwned;
+impl<V: BitVecOps> std::ops::Sub<&V> for &BitVecValue {
+    type Output = BitVecValue;
 
     fn sub(self, rhs: &V) -> Self::Output {
-        BitVecValue::sub(self, rhs)
+        BitVecOps::sub(self, rhs)
     }
 }
 
-impl std::fmt::Debug for ValueOwned {
+impl std::fmt::Debug for BitVecValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ValueOwned({})", self.to_bit_str())
     }
 }
 
 #[cfg(feature = "bigint")]
-impl From<&num_bigint::BigInt> for ValueOwned {
+impl From<&num_bigint::BigInt> for BitVecValue {
     fn from(value: &num_bigint::BigInt) -> Self {
         let bits = crate::io::bigint::count_big_int_bits(value);
         Self::from_big_int(value, bits)
@@ -144,30 +144,31 @@ impl From<&num_bigint::BigInt> for ValueOwned {
 }
 
 #[cfg(feature = "bigint")]
-impl From<&num_bigint::BigUint> for ValueOwned {
+impl From<&num_bigint::BigUint> for BitVecValue {
     fn from(value: &num_bigint::BigUint) -> Self {
         let bits = crate::io::bigint::count_big_uint_bits(value);
         Self::from_big_uint(value, bits)
     }
 }
 
-pub struct ValueRef<'a> {
+/// Bit-vector value that does not own its storage.
+pub struct BitVecValueRef<'a> {
     width: WidthInt,
     words: &'a [Word],
 }
 
-impl<'a> std::fmt::Debug for ValueRef<'a> {
+impl<'a> std::fmt::Debug for BitVecValueRef<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ValueRef({})", self.to_bit_str())
     }
 }
 
-pub struct ValueMutRef<'a> {
+pub struct BitVecValueMutRef<'a> {
     width: WidthInt,
     words: &'a mut [Word],
 }
 
-impl<'a> std::fmt::Debug for ValueMutRef<'a> {
+impl<'a> std::fmt::Debug for BitVecValueMutRef<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "ValueMutRef({})", self.to_bit_str())
     }
@@ -187,8 +188,11 @@ pub trait ValueStorage {
 }
 
 impl ValueIndexed {
-    pub fn as_ref<'a>(&self, storage: &'a impl ValueStorage) -> ValueRef<'a> {
-        ValueRef {
+    pub fn as_ref<'a>(
+        &self,
+        storage: &'a impl ValueStorage,
+    ) -> BitVecValueRef<'a> {
+        BitVecValueRef {
             width: self.width,
             words: storage.words(self.index),
         }
@@ -197,8 +201,8 @@ impl ValueIndexed {
     pub fn as_mut<'a>(
         &self,
         storage: &'a mut impl ValueStorage,
-    ) -> ValueMutRef<'a> {
-        ValueMutRef {
+    ) -> BitVecValueMutRef<'a> {
+        BitVecValueMutRef {
             width: self.width,
             words: storage.words_mut(self.index),
         }
@@ -209,7 +213,7 @@ impl ValueIndexed {
 /// bitvector of the same size.
 macro_rules! declare_arith_bin_fn {
     ($name:ident) => {
-        fn $name<R: BitVecValue>(&self, rhs: &R) -> ValueOwned {
+        fn $name<R: BitVecOps>(&self, rhs: &R) -> BitVecValue {
         debug_assert_eq!(self.width(), rhs.width());
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
@@ -221,7 +225,7 @@ macro_rules! declare_arith_bin_fn {
                 rhs.words(),
                 self.width(),
             );
-            ValueOwned {
+            BitVecValue {
                 width: self.width(),
                 words: SmallVec::from_buf(out),
             }
@@ -233,7 +237,7 @@ macro_rules! declare_arith_bin_fn {
                 rhs.words(),
                 self.width(),
             );
-            ValueOwned {
+            BitVecValue {
                 width: self.width(),
                 words: out,
             }
@@ -246,7 +250,7 @@ macro_rules! declare_arith_bin_fn {
 /// bitvector of the same size.
 macro_rules! declare_bit_arith_bin_fn {
     ($name:ident) => {
-        fn $name<R: BitVecValue>(&self, rhs: &R) -> ValueOwned {
+        fn $name<R: BitVecOps>(&self, rhs: &R) -> BitVecValue {
         debug_assert_eq!(self.width(), rhs.width());
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
@@ -257,7 +261,7 @@ macro_rules! declare_bit_arith_bin_fn {
                 self.words(),
                 rhs.words(),
             );
-            ValueOwned {
+            BitVecValue {
                 width: self.width(),
                 words: SmallVec::from_buf(out),
             }
@@ -268,7 +272,7 @@ macro_rules! declare_bit_arith_bin_fn {
                 self.words(),
                 rhs.words(),
             );
-            ValueOwned {
+            BitVecValue {
                 width: self.width(),
                 words: out,
             }
@@ -277,8 +281,8 @@ macro_rules! declare_bit_arith_bin_fn {
     };
 }
 
-/// Abstracts over values no matter how they are stored.
-pub trait BitVecValue {
+/// Operations over immutable bit-vector values.
+pub trait BitVecOps {
     fn width(&self) -> WidthInt;
     fn words(&self) -> &[Word];
 
@@ -384,7 +388,7 @@ pub trait BitVecValue {
     declare_bit_arith_bin_fn!(or);
     declare_bit_arith_bin_fn!(xor);
 
-    fn is_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_equal<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         debug_assert_eq!(self.width(), rhs.width());
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
@@ -395,11 +399,11 @@ pub trait BitVecValue {
         }
     }
 
-    fn is_not_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_not_equal<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         !self.is_equal(rhs)
     }
 
-    fn is_greater<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_greater<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         debug_assert_eq!(self.width(), rhs.width());
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
@@ -410,7 +414,7 @@ pub trait BitVecValue {
         }
     }
 
-    fn is_greater_or_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_greater_or_equal<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         debug_assert_eq!(self.width(), rhs.width());
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
@@ -421,17 +425,17 @@ pub trait BitVecValue {
         }
     }
 
-    fn is_less<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_less<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         // a < b <=> b > a
         rhs.is_greater(self)
     }
 
-    fn is_less_or_equal<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_less_or_equal<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         // a <= b <=> b >= a
         rhs.is_greater_or_equal(self)
     }
 
-    fn is_greater_signed<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_greater_signed<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         debug_assert_eq!(self.width(), rhs.width());
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
@@ -450,7 +454,7 @@ pub trait BitVecValue {
         }
     }
 
-    fn is_greater_or_equal_signed<R: BitVecValue + ?Sized>(
+    fn is_greater_or_equal_signed<R: BitVecOps + ?Sized>(
         &self,
         rhs: &R,
     ) -> bool {
@@ -472,20 +476,17 @@ pub trait BitVecValue {
         }
     }
 
-    fn is_less_signed<R: BitVecValue + ?Sized>(&self, rhs: &R) -> bool {
+    fn is_less_signed<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         // a < b <=> b > a
         rhs.is_greater_signed(self)
     }
 
-    fn is_less_or_equal_signed<R: BitVecValue + ?Sized>(
-        &self,
-        rhs: &R,
-    ) -> bool {
+    fn is_less_or_equal_signed<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         // a <= b <=> b >= a
         rhs.is_greater_or_equal_signed(self)
     }
 
-    fn slice(&self, msb: WidthInt, lsb: WidthInt) -> ValueOwned {
+    fn slice(&self, msb: WidthInt, lsb: WidthInt) -> BitVecValue {
         debug_assert!(msb <= self.width());
         debug_assert!(msb >= lsb);
         let out_width = msb - lsb + 1;
@@ -494,14 +495,14 @@ pub trait BitVecValue {
             // specialized for 1-word case
             let mut out = [0];
             crate::arithmetic::slice(&mut out, self.words(), msb, lsb);
-            ValueOwned {
+            BitVecValue {
                 width: out_width,
                 words: SmallVec::from_buf(out),
             }
         } else {
             let mut out = smallvec![0; out_words as usize];
             crate::arithmetic::slice(out.as_mut(), self.words(), msb, lsb);
-            ValueOwned {
+            BitVecValue {
                 width: out_width,
                 words: out,
             }
@@ -509,8 +510,8 @@ pub trait BitVecValue {
     }
 }
 
-/// Abstracts over mutabkle values no matter how they are stored.
-pub trait BitVecValueMut: BitVecValue {
+/// Operations over mutable bit-vector values.
+pub trait BitVecMutOps: BitVecOps {
     fn words_mut(&mut self) -> &mut [Word];
 
     fn set_from_word(&mut self, value: Word) {
@@ -538,7 +539,7 @@ pub trait BitVecValueMut: BitVecValue {
     }
 }
 
-impl BitVecValue for ValueOwned {
+impl BitVecOps for BitVecValue {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -548,13 +549,13 @@ impl BitVecValue for ValueOwned {
     }
 }
 
-impl BitVecValueMut for ValueOwned {
+impl BitVecMutOps for BitVecValue {
     fn words_mut(&mut self) -> &mut [Word] {
         &mut self.words
     }
 }
 
-impl<'a> BitVecValue for ValueRef<'a> {
+impl<'a> BitVecOps for BitVecValueRef<'a> {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -564,7 +565,7 @@ impl<'a> BitVecValue for ValueRef<'a> {
     }
 }
 
-impl<'a> BitVecValue for ValueMutRef<'a> {
+impl<'a> BitVecOps for BitVecValueMutRef<'a> {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -574,7 +575,7 @@ impl<'a> BitVecValue for ValueMutRef<'a> {
     }
 }
 
-impl<'a> BitVecValueMut for ValueMutRef<'a> {
+impl<'a> BitVecMutOps for BitVecValueMutRef<'a> {
     fn words_mut(&mut self) -> &mut [Word] {
         self.words
     }

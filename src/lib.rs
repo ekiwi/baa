@@ -16,6 +16,6 @@ pub enum Error {}
 
 use thiserror::Error;
 pub use value::{
-    BitVecValue, BitVecValueMut, ValueIndexed, ValueMutRef, ValueOwned,
-    ValueRef, ValueStorage,
+    BitVecMutOps, BitVecOps, BitVecValue, BitVecValueMutRef, BitVecValueRef,
+    ValueIndexed, ValueStorage,
 };
