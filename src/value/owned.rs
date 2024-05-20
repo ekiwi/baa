@@ -158,3 +158,29 @@ impl BitVecMutOps for BitVecValue {
         &mut self.words
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn type_size() {
+        // by default we use 32 bits to represent the width
+        assert_eq!(std::mem::size_of::<WidthInt>(), 4);
+        // we use a 64-bit word size
+        assert_eq!(std::mem::size_of::<Word>(), 8);
+        assert_eq!(std::mem::size_of::<[Word; 1]>(), 8);
+        // 8 bytes (usize) for the capacity, 8 byte pointer + 8 byte allocation size
+        assert_eq!(std::mem::size_of::<ValueVec>(), 8 + 8 + 8);
+        assert_eq!(
+            std::mem::size_of::<ValueVec>(),
+            std::mem::size_of::<Vec<Word>>()
+        );
+        // width + value + padding
+        assert_eq!(std::mem::size_of::<BitVecValue>(), 4 * 8);
+        assert_eq!(
+            std::mem::size_of::<BitVecValue>(),
+            std::mem::size_of::<ValueVec>() + std::mem::size_of::<WidthInt>() + 4
+        );
+    }
+}
