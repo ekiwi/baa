@@ -58,16 +58,6 @@ mod tests {
         assert_eq!(out0, [0x1234]);
     }
 
-    fn find_first_one(b: &[u8]) -> WidthInt {
-        for (ii, bb) in b.iter().enumerate().rev() {
-            if *bb > 0 {
-                let offset = bb.leading_zeros();
-                return ii as WidthInt * 8 + 8 - offset;
-            }
-        }
-        return 0;
-    }
-
     fn do_test_from_to_bytes_le(b: &[u8]) {
         let width = if b.is_empty() {
             0
