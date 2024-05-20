@@ -484,6 +484,29 @@ pub trait BitVecValue {
         // a <= b <=> b >= a
         rhs.is_greater_or_equal_signed(self)
     }
+
+    fn slice(&self, msb: WidthInt, lsb: WidthInt) -> ValueOwned {
+        debug_assert!(msb <= self.width());
+        debug_assert!(msb >= lsb);
+        let out_width = msb - lsb + 1;
+        let out_words = out_width.div_ceil(Word::BITS);
+        if out_words == 1 {
+            // specialized for 1-word case
+            let mut out = [0];
+            crate::arithmetic::slice(&mut out, self.words(), msb, lsb);
+            ValueOwned {
+                width: out_width,
+                words: SmallVec::from_buf(out),
+            }
+        } else {
+            let mut out = smallvec![0; out_words as usize];
+            crate::arithmetic::slice(out.as_mut(), self.words(), msb, lsb);
+            ValueOwned {
+                width: out_width,
+                words: out,
+            }
+        }
+    }
 }
 
 /// Abstracts over mutabkle values no matter how they are stored.
