@@ -40,7 +40,7 @@ fn get_sign(value: &[Word], width: WidthInt) -> num_bigint::Sign {
 
 pub(crate) fn to_big_int(words: &[Word], width: WidthInt) -> num_bigint::BigInt {
     if width == 0 {
-        return num_bigint::BigInt::ZERO;
+        return num_bigint::BigInt::from(0);
     }
     let sign = get_sign(words, width);
     // calculate the magnitude

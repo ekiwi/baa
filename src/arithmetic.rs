@@ -262,7 +262,7 @@ pub(crate) fn arithmetic_shift_right(dst: &mut [Word], a: &[Word], b: &[Word], w
                 // over shift => we just need to set everything to 1
                 todo!()
             }
-            Some(amount) => {
+            Some(_amount) => {
                 todo!()
             }
         }
