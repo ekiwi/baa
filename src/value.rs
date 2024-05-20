@@ -91,22 +91,14 @@ impl BitVecValue {
         fraction_width: WidthInt,
     ) -> Self {
         let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
-        crate::io::fraction::from_fixed_point(
-            value,
-            bits,
-            fraction_width,
-            &mut words,
-        );
+        crate::io::fraction::from_fixed_point(value, bits, fraction_width, &mut words);
         Self { width: bits, words }
     }
 }
 
 impl<V: BitVecOps> PartialEq<V> for BitVecValue {
     fn eq(&self, other: &V) -> bool {
-        debug_assert!(
-            !(other.width() == self.width)
-                || other.words().len() == self.words.len()
-        );
+        debug_assert!(!(other.width() == self.width) || other.words().len() == self.words.len());
         other.width() == self.width && other.words() == self.words.as_slice()
     }
 }
@@ -188,20 +180,14 @@ pub trait ValueStorage {
 }
 
 impl ValueIndexed {
-    pub fn as_ref<'a>(
-        &self,
-        storage: &'a impl ValueStorage,
-    ) -> BitVecValueRef<'a> {
+    pub fn as_ref<'a>(&self, storage: &'a impl ValueStorage) -> BitVecValueRef<'a> {
         BitVecValueRef {
             width: self.width,
             words: storage.words(self.index),
         }
     }
 
-    pub fn as_mut<'a>(
-        &self,
-        storage: &'a mut impl ValueStorage,
-    ) -> BitVecValueMutRef<'a> {
+    pub fn as_mut<'a>(&self, storage: &'a mut impl ValueStorage) -> BitVecValueMutRef<'a> {
         BitVecValueMutRef {
             width: self.width,
             words: storage.words_mut(self.index),
@@ -306,27 +292,13 @@ pub trait BitVecOps {
     }
 
     #[cfg(feature = "fraction1")]
-    fn to_signed_fixed_point(
-        &self,
-        fraction_width: WidthInt,
-    ) -> fraction::Fraction {
-        crate::io::fraction::to_signed_fixed_point(
-            self.words(),
-            self.width(),
-            fraction_width,
-        )
+    fn to_signed_fixed_point(&self, fraction_width: WidthInt) -> fraction::Fraction {
+        crate::io::fraction::to_signed_fixed_point(self.words(), self.width(), fraction_width)
     }
 
     #[cfg(feature = "fraction1")]
-    fn to_unsigned_fixed_point(
-        &self,
-        fraction_width: WidthInt,
-    ) -> fraction::Fraction {
-        crate::io::fraction::to_unsigned_fixed_point(
-            self.words(),
-            self.width(),
-            fraction_width,
-        )
+    fn to_unsigned_fixed_point(&self, fraction_width: WidthInt) -> fraction::Fraction {
+        crate::io::fraction::to_unsigned_fixed_point(self.words(), self.width(), fraction_width)
     }
 
     /// Returns value as a bool iff the value is a 1-bit value.
@@ -440,39 +412,20 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_signed(
-                self.words(),
-                rhs.words(),
-                self.width(),
-            )
+            crate::arithmetic::cmp_greater_signed(self.words(), rhs.words(), self.width())
         } else {
-            crate::arithmetic::cmp_greater_signed(
-                self.words(),
-                rhs.words(),
-                self.width(),
-            )
+            crate::arithmetic::cmp_greater_signed(self.words(), rhs.words(), self.width())
         }
     }
 
-    fn is_greater_or_equal_signed<R: BitVecOps + ?Sized>(
-        &self,
-        rhs: &R,
-    ) -> bool {
+    fn is_greater_or_equal_signed<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
         debug_assert_eq!(self.width(), rhs.width());
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_equal_signed(
-                self.words(),
-                rhs.words(),
-                self.width(),
-            )
+            crate::arithmetic::cmp_greater_equal_signed(self.words(), rhs.words(), self.width())
         } else {
-            crate::arithmetic::cmp_greater_equal_signed(
-                self.words(),
-                rhs.words(),
-                self.width(),
-            )
+            crate::arithmetic::cmp_greater_equal_signed(self.words(), rhs.words(), self.width())
         }
     }
 

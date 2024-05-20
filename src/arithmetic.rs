@@ -95,12 +95,7 @@ pub(crate) fn mask_msb(dst: &mut [Word], width: WidthInt) {
 }
 
 #[inline]
-pub(crate) fn slice(
-    dst: &mut [Word],
-    source: &[Word],
-    hi: WidthInt,
-    lo: WidthInt,
-) {
+pub(crate) fn slice(dst: &mut [Word], source: &[Word], hi: WidthInt, lo: WidthInt) {
     let lo_offset = lo % Word::BITS;
     let hi_word = (hi / Word::BITS) as usize;
     let lo_word = (lo / Word::BITS) as usize;
@@ -126,12 +121,7 @@ pub(crate) fn slice(
 }
 
 #[inline]
-pub(crate) fn concat(
-    dst: &mut [Word],
-    msb: &[Word],
-    lsb: &[Word],
-    lsb_width: WidthInt,
-) {
+pub(crate) fn concat(dst: &mut [Word], msb: &[Word], lsb: &[Word], lsb_width: WidthInt) {
     // copy lsb to dst
     assign(dst, lsb);
 
@@ -186,12 +176,7 @@ pub(crate) fn xor(dst: &mut [Word], a: &[Word], b: &[Word]) {
 }
 
 #[inline]
-fn bitwise_bin_op(
-    dst: &mut [Word],
-    a: &[Word],
-    b: &[Word],
-    op: fn(Word, Word) -> Word,
-) {
+fn bitwise_bin_op(dst: &mut [Word], a: &[Word], b: &[Word], op: fn(Word, Word) -> Word) {
     for (d, (a, b)) in dst.iter_mut().zip(a.iter().zip(b.iter())) {
         *d = (op)(*a, *b);
     }
@@ -266,12 +251,7 @@ pub(crate) fn shift_right(
 }
 
 #[inline]
-pub(crate) fn arithmetic_shift_right(
-    dst: &mut [Word],
-    a: &[Word],
-    b: &[Word],
-    width: WidthInt,
-) {
+pub(crate) fn arithmetic_shift_right(dst: &mut [Word], a: &[Word], b: &[Word], width: WidthInt) {
     // perform shift
     let shift_amount = shift_right(dst, a, b, width);
 
@@ -290,12 +270,7 @@ pub(crate) fn arithmetic_shift_right(
 }
 
 #[inline]
-pub(crate) fn shift_left(
-    dst: &mut [Word],
-    a: &[Word],
-    b: &[Word],
-    width: WidthInt,
-) {
+pub(crate) fn shift_left(dst: &mut [Word], a: &[Word], b: &[Word], width: WidthInt) {
     // check to see if we are shifting for more than our width
     let shift_amount = match get_shift_amount(b, width) {
         None => {
@@ -364,11 +339,7 @@ pub(crate) fn is_neg(src: &[Word], width: WidthInt) -> bool {
 }
 
 #[inline]
-pub(crate) fn cmp_greater_signed(
-    a: &[Word],
-    b: &[Word],
-    width: WidthInt,
-) -> bool {
+pub(crate) fn cmp_greater_signed(a: &[Word], b: &[Word], width: WidthInt) -> bool {
     match (is_neg(a, width), is_neg(b, width)) {
         (true, false) => false, // -|a| < |b|
         (false, true) => true,  // |a| > -|b|
@@ -396,11 +367,7 @@ pub(crate) fn cmp_greater_equal(a: &[Word], b: &[Word]) -> bool {
 }
 
 #[inline]
-pub(crate) fn cmp_greater_equal_signed(
-    a: &[Word],
-    b: &[Word],
-    width: WidthInt,
-) -> bool {
+pub(crate) fn cmp_greater_equal_signed(a: &[Word], b: &[Word], width: WidthInt) -> bool {
     match (is_neg(a, width), is_neg(b, width)) {
         (true, false) => false, // -|a| < |b|
         (false, true) => true,  // |a| > -|b|
@@ -421,6 +388,17 @@ pub(crate) fn bool_to_word(value: bool) -> Word {
 #[inline]
 pub(crate) fn word_to_bool(value: Word) -> bool {
     (value & 1) == 1
+}
+
+#[cfg(test)]
+pub(crate) fn assert_unused_bits_zero(value: &[Word], width: WidthInt) {
+    let offset = width % Word::BITS;
+    if offset > 0 {
+        let msb = *value.last().unwrap();
+        let m = !mask(offset);
+        let unused = msb & m;
+        assert_eq!(unused, 0, "unused msb bits need to be zero!")
+    }
 }
 
 // fn slice(&self, msb: WidthInt, lsb: WidthInt) -> ValueOwned {

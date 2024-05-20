@@ -72,6 +72,7 @@ mod tests {
         let mut out = vec![0; words];
         let width = from_bit_str(&s, &mut out);
         assert_eq!(width as usize, s.len());
+        crate::arithmetic::assert_unused_bits_zero(&out, width);
         let s_out = to_bit_str(&out, width);
         assert_eq!(s, s_out);
     }

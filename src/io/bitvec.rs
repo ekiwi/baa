@@ -30,10 +30,7 @@ pub(crate) fn to_bitvec(values: &[Word], width: WidthInt) -> BitVec {
     out
 }
 
-pub(crate) fn from_bitvec<T, O>(
-    bits: &BitVec<T, O>,
-    out: &mut [Word],
-) -> WidthInt
+pub(crate) fn from_bitvec<T, O>(bits: &BitVec<T, O>, out: &mut [Word]) -> WidthInt
 where
     T: BitStore,
     O: BitOrder,
@@ -84,6 +81,7 @@ mod tests {
         let words = vec_in.len().div_ceil(Word::BITS as usize);
         let mut out = vec![0; words];
         let width = from_bitvec(&vec_in, &mut out);
+        crate::arithmetic::assert_unused_bits_zero(&out, width);
         assert_eq!(width as usize, vec_in.len());
         let vec_out = to_bitvec(&out, width);
         assert_eq!(vec_in, vec_out);

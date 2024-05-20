@@ -73,14 +73,12 @@ mod tests {
             0
         } else {
             (b.len() - 1) * u8::BITS as usize
-                + std::cmp::max(
-                    8 - b.last().unwrap().leading_zeros() as usize,
-                    1,
-                )
+                + std::cmp::max(8 - b.last().unwrap().leading_zeros() as usize, 1)
         } as u32;
         let words = width.div_ceil(Word::BITS) as usize;
         let mut out = vec![0; words];
         from_bytes_le(b, width, &mut out);
+        crate::arithmetic::assert_unused_bits_zero(&out, width);
         let b_out = to_bytes_le(&out, width);
         assert_eq!(b.as_ref(), b_out);
     }
