@@ -95,6 +95,8 @@ impl<V: BitVecValue> PartialEq<V> for ValueOwned {
     }
 }
 
+impl Eq for ValueOwned {}
+
 impl<V: BitVecValue> std::ops::Add<&V> for &ValueOwned {
     type Output = ValueOwned;
 
@@ -295,6 +297,7 @@ pub trait BitVecValue {
 
     /// Returns the value as a 64-bit unsigned integer iff the width is 64-bit or less.
     fn to_u64(&self) -> Option<u64> {
+        // TODO: allow conversion of bit-vectors over 64 bits if the value can fit into 64 bits
         if self.width() <= 64 {
             if self.width() == 0 {
                 Some(0)
@@ -310,6 +313,7 @@ pub trait BitVecValue {
 
     /// Returns the value as a 64-bit signed integer iff the width is 64-bit or less.
     fn to_i64(&self) -> Option<i64> {
+        // TODO: allow conversion of bit-vectors over 64 bits if the value can fit into 64 bits
         if self.width() <= 64 {
             if self.width() == 0 {
                 Some(0)
@@ -325,6 +329,10 @@ pub trait BitVecValue {
         } else {
             None
         }
+    }
+
+    fn is_zero(&self) -> bool {
+        self.words().iter().all(|w| *w == 0)
     }
 
     declare_arith_bin_fn!(add);
