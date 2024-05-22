@@ -8,8 +8,8 @@ use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
 
 /// Bit-vector value that does not own its storage.
 pub struct BitVecValueRef<'a> {
-    width: WidthInt,
-    words: &'a [Word],
+    pub(crate) width: WidthInt,
+    pub(crate) words: &'a [Word],
 }
 
 impl<'a> std::fmt::Debug for BitVecValueRef<'a> {
@@ -19,8 +19,8 @@ impl<'a> std::fmt::Debug for BitVecValueRef<'a> {
 }
 
 pub struct BitVecValueMutRef<'a> {
-    width: WidthInt,
-    words: &'a mut [Word],
+    pub(crate) width: WidthInt,
+    pub(crate) words: &'a mut [Word],
 }
 
 impl<'a> std::fmt::Debug for BitVecValueMutRef<'a> {
