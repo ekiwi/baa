@@ -16,9 +16,9 @@ macro_rules! declare_arith_bin_fn {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            let mut out = [0];
+            let mut out = [0; 2];
             crate::arithmetic::$name(
-                &mut out,
+                &mut out[0..1],
                 self.words(),
                 rhs.words(),
                 self.width(),
@@ -53,9 +53,9 @@ macro_rules! declare_bit_arith_bin_fn {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            let mut out = [0];
+            let mut out = [0; 2];
             crate::arithmetic::$name(
-                &mut out,
+                &mut out[0..1],
                 self.words(),
                 rhs.words(),
             );
@@ -116,7 +116,6 @@ pub trait BitVecOps {
     /// Returns value as a bool iff the value is a 1-bit value.
     fn to_bool(&self) -> Option<bool> {
         if self.width() == 1 {
-            debug_assert_eq!(self.words().len(), 1);
             Some(crate::arithmetic::word_to_bool(self.words()[0]))
         } else {
             None
@@ -258,8 +257,8 @@ pub trait BitVecOps {
         let out_words = out_width.div_ceil(Word::BITS);
         if out_words == 1 {
             // specialized for 1-word case
-            let mut out = [0];
-            crate::arithmetic::slice(&mut out, self.words(), msb, lsb);
+            let mut out = [0; 2];
+            crate::arithmetic::slice(&mut out[0..1], self.words(), msb, lsb);
             BitVecValue {
                 width: out_width,
                 words: SmallVec::from_buf(out),

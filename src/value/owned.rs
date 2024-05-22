@@ -5,7 +5,7 @@
 use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
-type ValueVec = SmallVec<[Word; 1]>;
+type ValueVec = SmallVec<[Word; 2]>;
 
 /// Owned bit-vector value.
 #[derive(Clone)]
@@ -17,11 +17,11 @@ pub struct BitVecValue {
 
 const OWNED_TRUE: BitVecValue = BitVecValue {
     width: 1,
-    words: SmallVec::from_const([1]),
+    words: SmallVec::from_const([1, 0]),
 };
 const OWNED_FALSE: BitVecValue = BitVecValue {
     width: 1,
-    words: SmallVec::from_const([1]),
+    words: SmallVec::from_const([0, 0]),
 };
 
 impl BitVecValue {
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<WidthInt>(), 4);
         // we use a 64-bit word size
         assert_eq!(std::mem::size_of::<Word>(), 8);
-        assert_eq!(std::mem::size_of::<[Word; 1]>(), 8);
+        assert_eq!(std::mem::size_of::<[Word; 2]>(), 16);
         // 8 bytes (usize) for the capacity, 8 byte pointer + 8 byte allocation size
         assert_eq!(std::mem::size_of::<ValueVec>(), 8 + 8 + 8);
         assert_eq!(
@@ -182,5 +182,11 @@ mod tests {
             std::mem::size_of::<BitVecValue>(),
             std::mem::size_of::<ValueVec>() + std::mem::size_of::<WidthInt>() + 4
         );
+    }
+
+    #[test]
+    fn test_tru_fals() {
+        assert!(BitVecValue::tru().to_bool().unwrap());
+        assert!(!BitVecValue::fals().to_bool().unwrap());
     }
 }
