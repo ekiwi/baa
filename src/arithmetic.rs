@@ -403,25 +403,73 @@ pub(crate) fn assert_unused_bits_zero(value: &[Word], width: WidthInt) {
     }
 }
 
-// fn slice(&self, msb: WidthInt, lsb: WidthInt) -> ValueOwned {
-//     debug_assert!(msb < self.width());
-//     debug_assert!(msb >= lsb);
-//     todo!()
-// }
-//
-// fn truncate(&self, new_width: WidthInt) -> ValueOwned {
-//     self.slice(new_width, 0)
-// }
-//
-// fn uext(&self, new_width: WidthInt) -> ValueOwned {
-//     debug_assert!(new_width <= self.width());
-//     todo!()
-// }
-//
-// fn sext(&self, new_width: WidthInt) -> ValueOwned {
-//     debug_assert!(new_width <= self.width());
-//     todo!()
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::io::strings::to_bit_str;
+    use crate::value::owned::{value_vec, ValueVec};
+    use proptest::prelude::*;
+
+    fn from_bit_str(s: &str) -> (ValueVec, WidthInt) {
+        let width = s.len() as WidthInt;
+        let mut out = value_vec(width);
+        crate::io::strings::from_bit_str(s, &mut out);
+        (out, width)
+    }
+
+    fn do_test_concat(a: &str, b: &str) {
+        let (a_vec, a_width) = from_bit_str(a);
+        let (b_vec, b_width) = from_bit_str(b);
+        let c_init = "1".repeat(a.len() + b.len());
+        let (mut c_vec, c_width) = from_bit_str(&c_init);
+        assert_eq!(c_width, a_width + b_width);
+        concat(&mut c_vec, &a_vec, &b_vec, b_width);
+        assert_unused_bits_zero(&c_vec, c_width);
+        let expected = format!("{a}{b}");
+    }
+
+    fn do_test_slice(src: &str, hi: WidthInt, lo: WidthInt) {
+        assert!(
+            !src.is_empty(),
+            "slice only works with vectors that are at least 1-bit!"
+        );
+        let (src_vec, src_width) = from_bit_str(src);
+        assert!(hi >= lo);
+        assert!(hi < src_width);
+        let res_width = hi - lo + 1;
+        let mut res_vec = vec![0 as Word; res_width.div_ceil(Word::BITS) as usize];
+        slice(&mut res_vec, &src_vec, hi, lo);
+        assert_unused_bits_zero(&res_vec, res_width);
+        let expected: String = src
+            .chars()
+            .skip((src_width - 1 - hi) as usize)
+            .take(res_width as usize)
+            .collect();
+        assert_eq!(to_bit_str(&res_vec, res_width), expected);
+    }
+
+    fn slice_args() -> impl Strategy<Value = (String, WidthInt, WidthInt)> {
+        "[01]+"
+            .prop_flat_map(|bits: String| {
+                let len = std::cmp::max(bits.len(), 1);
+                (Just(bits), 0..(len as WidthInt))
+            })
+            .prop_flat_map(|(bits, msb)| (Just(bits), Just(msb), 0..(msb + 1)))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(10000))]
+        #[test]
+        fn test_concat(a in "[01]*", b in "[01]*") {
+            do_test_concat(&a, &b);
+        }
+
+        #[test]
+        fn test_slice((s, msb, lsb) in slice_args()) {
+            do_test_slice(&s, msb, lsb);
+        }
+    }
+}
 
 // #[cfg(test)]
 // mod tests {
@@ -448,47 +496,6 @@ pub(crate) fn assert_unused_bits_zero(value: &[Word], width: WidthInt) {
 //         assert_eq!(src_b_3, &[0, 1]);
 //     }
 //
-//     fn do_test_concat(a: &str, b: &str, c_init: &str) {
-//         let (a_vec, a_width) = from_bit_str(a);
-//         let (b_vec, b_width) = from_bit_str(b);
-//         let (mut c_vec, c_width) = from_bit_str(c_init);
-//         assert_eq!(c_width, a_width + b_width);
-//         concat(&mut c_vec, &a_vec, &b_vec, b_width);
-//         assert_unused_bits_zero(&c_vec, c_width);
-//         let expected = format!("{a}{b}");
-//         assert_eq!(to_bit_str(&c_vec, c_width), expected);
-//     }
-//
-//     #[test]
-//     fn test_concat() {
-//         let mut rng = rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(1);
-//         // simple
-//         do_test_concat("0", "0", "11");
-//
-//         // word aligned
-//         do_test_concat(
-//             &random_bit_str(Word::BITS, &mut rng),
-//             &random_bit_str(Word::BITS * 2, &mut rng),
-//             &random_bit_str(Word::BITS + Word::BITS * 2, &mut rng),
-//         );
-//         // unaligned
-//         do_test_concat(
-//             &random_bit_str(38, &mut rng),
-//             &random_bit_str(44, &mut rng),
-//             &random_bit_str(38 + 44, &mut rng),
-//         );
-//         do_test_concat(
-//             &random_bit_str(38, &mut rng),
-//             &random_bit_str(8, &mut rng),
-//             &random_bit_str(38 + 8, &mut rng),
-//         );
-//         // test a concat where dst and msb have the same number of words
-//         do_test_concat(
-//             &random_bit_str(10 + Word::BITS, &mut rng),
-//             &random_bit_str(8, &mut rng),
-//             &random_bit_str(10 + Word::BITS + 8, &mut rng),
-//         );
-//     }
 //
 //     fn do_test_slice(src: &str, hi: WidthInt, lo: WidthInt) {
 //         let (src_vec, src_width) = from_bit_str(src);

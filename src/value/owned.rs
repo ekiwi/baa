@@ -5,7 +5,7 @@
 use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
-type ValueVec = SmallVec<[Word; 2]>;
+pub(crate) type ValueVec = SmallVec<[Word; 2]>;
 
 /// Owned bit-vector value.
 #[derive(Clone)]
@@ -27,11 +27,10 @@ const OWNED_FALSE: BitVecValue = BitVecValue {
 impl BitVecValue {
     /// Parse a string of 1s and 0s. The width of the resulting value is the number of digits.
     pub fn from_bit_str(value: &str) -> Self {
-        let bits = value.len();
-        let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS as usize)];
+        let mut words = value_vec(value.len() as WidthInt);
         crate::io::strings::from_bit_str(value, &mut words);
         Self {
-            width: bits as WidthInt,
+            width: value.len() as WidthInt,
             words,
         }
     }
@@ -53,7 +52,7 @@ impl BitVecValue {
     }
 
     pub fn from_bytes_le(bytes: &[u8], bits: WidthInt) -> Self {
-        let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
+        let mut words = value_vec(bits);
         crate::io::bytes::from_bytes_le(bytes, bits, words.as_mut());
         Self { width: bits, words }
     }
@@ -72,14 +71,14 @@ impl BitVecValue {
 
     #[cfg(feature = "bigint")]
     pub fn from_big_int(value: &num_bigint::BigInt, bits: WidthInt) -> Self {
-        let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
+        let mut words = value_vec(bits);
         crate::io::bigint::from_big_int(value, bits, &mut words);
         Self { width: bits, words }
     }
 
     #[cfg(feature = "bigint")]
     pub fn from_big_uint(value: &num_bigint::BigUint, bits: WidthInt) -> Self {
-        let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
+        let mut words = value_vec(bits);
         crate::io::bigint::from_big_uint(value, bits, &mut words);
         Self { width: bits, words }
     }
@@ -90,10 +89,15 @@ impl BitVecValue {
         bits: WidthInt,
         fraction_width: WidthInt,
     ) -> Self {
-        let mut words = smallvec![0; bits.div_ceil(WidthInt::BITS) as usize];
+        let mut words = value_vec(bits);
         crate::io::fraction::from_fixed_point(value, bits, fraction_width, &mut words);
         Self { width: bits, words }
     }
+}
+
+#[inline]
+pub(crate) fn value_vec(width: WidthInt) -> ValueVec {
+    smallvec![0; width.div_ceil(WidthInt::BITS) as usize]
 }
 
 impl<V: BitVecOps> PartialEq<V> for BitVecValue {
