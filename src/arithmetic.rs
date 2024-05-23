@@ -457,6 +457,65 @@ mod tests {
             .prop_flat_map(|(bits, msb)| (Just(bits), Just(msb), 0..(msb + 1)))
     }
 
+    fn width_int_to_bit_str(value: WidthInt, width: WidthInt) -> String {
+        let mut words = value_vec(width);
+        // make sure the shift amount fits into the width
+        assert_eq!(
+            (value as Word) & mask(width),
+            value as Word,
+            "shift amount is too large: {value} > {}",
+            mask(width)
+        );
+        words[0] = value as Word;
+        to_bit_str(&words, width)
+    }
+
+    fn do_test_shift(src: &str, by: WidthInt, right: bool) {
+        let (a_vec, a_width) = from_bit_str(src);
+        let b = width_int_to_bit_str(by, a_width);
+        let (b_vec, b_width) = from_bit_str(&b);
+        assert_eq!(a_width, b_width);
+        let mut res_vec = vec![0 as Word; a_vec.len()];
+        if right {
+            shift_right(&mut res_vec, &a_vec, &b_vec, a_width);
+        } else {
+            shift_left(&mut res_vec, &a_vec, &b_vec, a_width);
+        }
+        assert_unused_bits_zero(&res_vec, a_width);
+        let zeros = std::cmp::min(by, a_width) as usize;
+        let mut expected: String = "0".repeat(zeros);
+        if right {
+            let msb: String = src.chars().take(a_width as usize - zeros).collect();
+            expected.push_str(&msb);
+        } else {
+            let mut msb: String = src.chars().skip(zeros).collect();
+            msb.push_str(&expected);
+            expected = msb;
+        }
+        assert_eq!(to_bit_str(&res_vec, a_width), expected);
+    }
+
+    fn do_test_shift_right(src: &str, by: WidthInt) {
+        do_test_shift(src, by, true)
+    }
+    fn do_test_shift_left(src: &str, by: WidthInt) {
+        do_test_shift(src, by, false)
+    }
+
+    /// biases `by` value to be more interesting
+    fn shift_args() -> impl Strategy<Value = (String, WidthInt)> {
+        "[01]+".prop_flat_map(|bits: String| {
+            let len = std::cmp::max(bits.len(), 1);
+            let max_shift =
+                std::cmp::min(mask(bits.len() as WidthInt) + 1, WidthInt::MAX as Word) as WidthInt;
+            let by = prop_oneof![0..(len as WidthInt), 0..(max_shift)];
+            (Just(bits), by)
+        })
+    }
+
+    #[test]
+    fn test_shift_right_regression() {}
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(10000))]
         #[test]
@@ -467,6 +526,16 @@ mod tests {
         #[test]
         fn test_slice((s, msb, lsb) in slice_args()) {
             do_test_slice(&s, msb, lsb);
+        }
+
+        #[test]
+        fn test_shift_right((s, by) in shift_args()) {
+            do_test_shift_right(&s, by);
+        }
+
+        #[test]
+        fn test_shift_left((s, by) in shift_args()) {
+            do_test_shift_left(&s, by);
         }
     }
 }
@@ -497,118 +566,6 @@ mod tests {
 //     }
 //
 //
-//     fn do_test_slice(src: &str, hi: WidthInt, lo: WidthInt) {
-//         let (src_vec, src_width) = from_bit_str(src);
-//         assert!(hi >= lo);
-//         assert!(hi < src_width);
-//         let res_width = hi - lo + 1;
-//         let mut res_vec = vec![0 as Word; res_width.div_ceil(Word::BITS) as usize];
-//         slice(&mut res_vec, &src_vec, hi, lo);
-//         assert_unused_bits_zero(&res_vec, res_width);
-//         let expected: String = src
-//             .chars()
-//             .skip((src_width - 1 - hi) as usize)
-//             .take(res_width as usize)
-//             .collect();
-//         assert_eq!(to_bit_str(&res_vec, res_width), expected);
-//     }
-//
-//     #[test]
-//     fn test_slice() {
-//         let mut rng = rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(1);
-//         let in0 = random_bit_str(15, &mut rng);
-//         // do_test_slice(&in0, 0, 0);
-//         do_test_slice(&in0, 1, 1);
-//         do_test_slice(&in0, 6, 0);
-//         do_test_slice(&in0, 6, 4);
-//
-//         // test slice across two words
-//         let in1 = random_bit_str((2 * Word::BITS) - 5, &mut rng);
-//         do_test_slice(&in1, Word::BITS, Word::BITS - 5);
-//         do_test_slice(&in1, Word::BITS + 5, Word::BITS - 5);
-//
-//         // test larger slices
-//         let in2 = random_bit_str(1354, &mut rng);
-//         do_test_slice(&in2, 400, 400); // 400 = 6 * 64 +  16
-//         do_test_slice(&in2, 400, 400 - 20);
-//         do_test_slice(&in2, 400 + 13, 400 - 20);
-//
-//         // result is larger than one word
-//         do_test_slice(&in2, 875, Word::BITS * 13); // aligned to word boundaries
-//         do_test_slice(&in2, 3 + (Word::BITS * 2) + 11, 3);
-//         do_test_slice(&in2, 875, 875 - (Word::BITS * 2) - 15);
-//     }
-//
-//     fn width_int_to_bit_str(value: WidthInt, width: WidthInt) -> String {
-//         let mut words = vec![0 as Word; width.div_ceil(Word::BITS) as usize];
-//         words[0] = value as Word;
-//         to_bit_str(&words, width)
-//     }
-//
-//     fn do_test_shift(src: &str, by: WidthInt, right: bool) {
-//         let (a_vec, a_width) = from_bit_str(src);
-//         let (b_vec, b_width) = from_bit_str(&width_int_to_bit_str(by, a_width));
-//         assert_eq!(a_width, b_width);
-//         let mut res_vec = vec![0 as Word; a_vec.len()];
-//         if right {
-//             shift_right(&mut res_vec, &a_vec, &b_vec, a_width);
-//         } else {
-//             shift_left(&mut res_vec, &a_vec, &b_vec, a_width);
-//         }
-//         assert_unused_bits_zero(&res_vec, a_width);
-//         let zeros = std::cmp::min(by, a_width) as usize;
-//         let mut expected: String = "0".repeat(zeros);
-//         if right {
-//             let msb: String = src.chars().take(a_width as usize - zeros).collect();
-//             expected.push_str(&msb);
-//         } else {
-//             let mut msb: String = src.chars().skip(zeros).collect();
-//             msb.push_str(&expected);
-//             expected = msb;
-//         }
-//         assert_eq!(to_bit_str(&res_vec, a_width), expected);
-//     }
-//
-//     fn do_test_shift_right(src: &str, by: WidthInt) {
-//         do_test_shift(src, by, true)
-//     }
-//     fn do_test_shift_left(src: &str, by: WidthInt) {
-//         do_test_shift(src, by, false)
-//     }
-//
-//     #[test]
-//     fn test_shift_right() {
-//         let mut rng = rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(1);
-//         let in0 = random_bit_str(15, &mut rng);
-//         do_test_shift_right(&in0, 0);
-//         do_test_shift_right(&in0, 3);
-//         do_test_shift_right(&in0, 14);
-//         do_test_shift_right(&in0, 30);
-//
-//         let in1 = random_bit_str(157, &mut rng);
-//         do_test_shift_right(&in1, 0);
-//         do_test_shift_right(&in1, 3);
-//         do_test_shift_right(&in1, 14);
-//         do_test_shift_right(&in1, 150);
-//         do_test_shift_right(&in1, 200);
-//     }
-//
-//     #[test]
-//     fn test_shift_left() {
-//         let mut rng = rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(1);
-//         let in0 = random_bit_str(15, &mut rng);
-//         do_test_shift_left(&in0, 0);
-//         do_test_shift_left(&in0, 3);
-//         do_test_shift_left(&in0, 14);
-//         do_test_shift_left(&in0, 30);
-//
-//         let in1 = random_bit_str(157, &mut rng);
-//         do_test_shift_left(&in1, 0);
-//         do_test_shift_left(&in1, 3);
-//         do_test_shift_left(&in1, 14);
-//         do_test_shift_left(&in1, 150);
-//         do_test_shift_left(&in1, 200);
-//     }
 //
 //     fn do_test_zero_ext(src: &str, by: WidthInt) {
 //         let (src_vec, src_width) = from_bit_str(src);
