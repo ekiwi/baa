@@ -9,28 +9,35 @@ use crate::{WidthInt, Word};
 
 type WordIndex = u32;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct BitVecValueIndex {
     width: WidthInt,
     index: WordIndex,
 }
 
 impl BitVecValueIndex {
-    fn new(index: WordIndex, width: WidthInt) -> Self {
+    #[inline]
+    pub fn new(index: WordIndex, width: WidthInt) -> Self {
         Self { index, width }
     }
 
     #[inline]
-    fn words(&self) -> usize {
+    pub fn words(&self) -> usize {
         self.width.div_ceil(Word::BITS) as usize
     }
 
     #[inline]
-    fn to_range(&self) -> std::ops::Range<usize> {
+    pub fn to_range(&self) -> std::ops::Range<usize> {
         let start = self.index as usize;
         let end = start + self.words();
         start..end
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct ArrayValueIndex {
+    first: BitVecValueIndex,
+    index_width: WidthInt,
 }
 
 pub struct ValueStorage<'a> {
