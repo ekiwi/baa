@@ -8,3 +8,4 @@ cc 5290d03e20dc8ead48a564a4df1f5a7ac522f13976a595ff42342a6a5a920e18 # shrinks to
 cc cbfc3e8761ac7923718ed350fdf90de1098dbb8a80ac794ba3f9bd7cbbbc4938 # shrinks to (s, by) = ("1", 716052416)
 cc 1740557fa41275b12cc7360e57ee7f4559e19340417ea715b0b2e091752c435b # shrinks to (s, by) = ("1", 1292759630)
 cc 8c11598f6722b491fe336e0ea5f244658013097af2c7c877239e4caeed20f6f8 # shrinks to (s, by) = ("0", 2)
+cc 65cbcc7cbdef8b33b729731cb014646906cec282b76f898b967627fd515dbab9 # shrinks to (s, by) = ("10", 1)

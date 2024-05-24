@@ -262,10 +262,25 @@ pub(crate) fn arithmetic_shift_right(dst: &mut [Word], a: &[Word], b: &[Word], w
         match shift_amount {
             None => {
                 // over shift => we just need to set everything to 1
-                todo!()
+                for d in dst.iter_mut() {
+                    *d = Word::MAX;
+                }
+                mask_msb(dst, width);
             }
-            Some(_amount) => {
-                todo!()
+            Some(amount) => {
+                if amount > 0 {
+                    let res_width = width - amount;
+                    let local_msb = (res_width - 1) % Word::BITS;
+                    let msb_word = ((res_width - 1) / Word::BITS) as usize;
+                    if local_msb < (Word::BITS - 1) {
+                        let msb_word_mask = mask(Word::BITS - (local_msb + 1));
+                        dst[msb_word] |= msb_word_mask << (local_msb + 1);
+                    }
+                    for d in dst[(msb_word + 1)..].iter_mut() {
+                        *d = Word::MAX;
+                    }
+                    mask_msb(dst, width);
+                }
             }
         }
     }
@@ -465,35 +480,48 @@ mod tests {
     fn width_int_to_bit_str(value: WidthInt, width: WidthInt) -> String {
         let mut words = value_vec(width);
         // make sure the shift amount fits into the width
-        assert_eq!(
-            (value as Word) & mask(width),
-            value as Word,
-            "shift amount is too large: {value} > {}",
-            mask(width)
-        );
+        if width < WidthInt::BITS {
+            assert_eq!(
+                (value as Word) & mask(width),
+                value as Word,
+                "shift amount is too large: {value} > {}",
+                mask(width)
+            );
+        }
         words[0] = value as Word;
         to_bit_str(&words, width)
     }
 
-    fn do_test_shift(src: &str, by: WidthInt, right: bool) {
+    fn do_test_shift(src: &str, by: WidthInt, right: bool, signed: bool) {
+        assert!(!(!right && signed), "left shift is always unsigned!");
         let (a_vec, a_width) = from_bit_str(src);
         let b = width_int_to_bit_str(by, a_width);
         let (b_vec, b_width) = from_bit_str(&b);
         assert_eq!(a_width, b_width);
         let mut res_vec = vec![0 as Word; a_vec.len()];
         if right {
-            shift_right(&mut res_vec, &a_vec, &b_vec, a_width);
+            if signed {
+                arithmetic_shift_right(&mut res_vec, &a_vec, &b_vec, a_width);
+            } else {
+                shift_right(&mut res_vec, &a_vec, &b_vec, a_width);
+            }
         } else {
             shift_left(&mut res_vec, &a_vec, &b_vec, a_width);
         }
         assert_unused_bits_zero(&res_vec, a_width);
-        let zeros = std::cmp::min(by, a_width) as usize;
-        let mut expected: String = "0".repeat(zeros);
+        let padding_len = std::cmp::min(by, a_width) as usize;
+        let pad_char = if signed {
+            src.chars().next().unwrap()
+        } else {
+            '0'
+        };
+
+        let mut expected: String = pad_char.to_string().repeat(padding_len);
         if right {
-            let msb: String = src.chars().take(a_width as usize - zeros).collect();
+            let msb: String = src.chars().take(a_width as usize - padding_len).collect();
             expected.push_str(&msb);
         } else {
-            let mut msb: String = src.chars().skip(zeros).collect();
+            let mut msb: String = src.chars().skip(padding_len).collect();
             msb.push_str(&expected);
             expected = msb;
         }
@@ -501,10 +529,30 @@ mod tests {
     }
 
     fn do_test_shift_right(src: &str, by: WidthInt) {
-        do_test_shift(src, by, true)
+        do_test_shift(src, by, true, false);
     }
     fn do_test_shift_left(src: &str, by: WidthInt) {
-        do_test_shift(src, by, false)
+        do_test_shift(src, by, false, false);
+    }
+
+    fn do_test_arithmetic_shift_right(src: &str, by: WidthInt) {
+        do_test_shift(src, by, true, true);
+    }
+
+    #[test]
+    fn test_arithmetic_shift_right_regression() {
+        do_test_arithmetic_shift_right("1", 0);
+        do_test_arithmetic_shift_right("10", 1);
+        do_test_arithmetic_shift_right(&format!("1{}", "0".repeat(Word::BITS as usize)), 1);
+        do_test_arithmetic_shift_right(&format!("1{}", "0".repeat((Word::BITS * 2) as usize)), 1);
+        do_test_arithmetic_shift_right(
+            &format!("1{}", "0".repeat((Word::BITS * 2) as usize)),
+            Word::BITS,
+        );
+        do_test_arithmetic_shift_right(
+            &format!("1{}", "0".repeat((Word::BITS * 2) as usize)),
+            Word::BITS * 2,
+        );
     }
 
     /// biases `by` value to be more interesting
@@ -562,6 +610,11 @@ mod tests {
         #[test]
         fn test_shift_left((s, by) in shift_args()) {
             do_test_shift_left(&s, by);
+        }
+
+        #[test]
+        fn test_arithmetic_shift_right((s, by) in shift_args()) {
+            do_test_arithmetic_shift_right(&s, by);
         }
 
         #[test]
