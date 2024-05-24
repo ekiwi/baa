@@ -617,7 +617,14 @@ mod tests {
     // generates two big ints of equal bit width
     fn gen_big_int_pair() -> impl Strategy<Value = (BigInt, BigInt, WidthInt)> {
         let max_bits = 16 * Word::BITS;
-        (1..max_bits).prop_flat_map(|bits| (gen_big_int(bits), gen_big_int(bits), Just(bits)))
+        (1..max_bits)
+            .prop_flat_map(|bits| (Just(bits), 1..(bits + 1)))
+            .prop_flat_map(|(width, second_width)| {
+                prop_oneof![
+                    (gen_big_int(width), gen_big_int(second_width), Just(width)),
+                    (gen_big_int(second_width), gen_big_int(width), Just(width)),
+                ]
+            })
     }
 
     fn from_big_int(value: &BigInt, width: WidthInt) -> ValueVec {
