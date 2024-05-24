@@ -218,7 +218,8 @@ pub(crate) fn sub(dst: &mut [Word], a: &[Word], b: &[Word], width: WidthInt) {
 #[inline]
 pub(crate) fn mul(dst: &mut [Word], a: &[Word], b: &[Word], width: WidthInt) {
     if width <= Word::BITS {
-        dst[0] = (a[0] * b[0]) & mask(width);
+        let (res, _) = a[0].overflowing_mul(b[0]);
+        dst[0] = res & mask(width);
     } else {
         todo!(
             "implement multiplication for bit vectors larger {}",
@@ -656,6 +657,15 @@ mod tests {
         do_test_arith(a, b, width, mul, |a, b| a * b)
     }
 
+    #[test]
+    fn test_mul_regressions() {
+        do_test_mul(
+            BigInt::from(1099511627776i64),
+            BigInt::from(1099511627776i64),
+            50,
+        );
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
         #[test]
@@ -696,6 +706,17 @@ mod tests {
         #[test]
         fn test_add((a, b, width) in gen_big_int_pair()) {
             do_test_add(a, b, width);
+        }
+
+        #[test]
+        fn test_sub((a, b, width) in gen_big_int_pair()) {
+            do_test_sub(a, b, width);
+        }
+
+        #[ignore] // TODO: implement mul for bitwidths > 64
+        #[test]
+        fn test_mul((a, b, width) in gen_big_int_pair()) {
+            do_test_mul(a, b, width);
         }
     }
 }
