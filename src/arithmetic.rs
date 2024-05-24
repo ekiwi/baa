@@ -759,6 +759,26 @@ mod tests {
         );
     }
 
+    fn do_test_cmp_greater_equal(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_cmp_unsigned(
+            a,
+            b,
+            width,
+            |a, b, _| cmp_greater_equal(a, b),
+            |a, b| a >= b,
+        )
+    }
+    fn do_test_cmp_greater_equal_signed(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_cmp_signed(a, b, width, cmp_greater_equal_signed, |a, b| a >= b)
+    }
+
+    fn do_test_cmp_equal(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_cmp_unsigned(a, b, width, |a, b, _| cmp_equal(a, b), |a, b| a == b)
+    }
+    fn do_test_cmp_equal_signed(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_cmp_signed(a, b, width, |a, b, _| cmp_equal(a, b), |a, b| a == b)
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
 
@@ -827,18 +847,29 @@ mod tests {
         fn test_cmp_greater_signed((a, b, width) in gen_big_int_pair()) {
             do_test_cmp_greater_signed(a, b, width);
         }
+
+        #[test]
+        fn test_cmp_greater_equal((a, b, width) in gen_big_int_pair()) {
+            do_test_cmp_greater_equal(a, b, width);
+        }
+
+         #[test]
+        fn test_cmp_greater_equal_signed((a, b, width) in gen_big_int_pair()) {
+            do_test_cmp_greater_equal_signed(a, b, width);
+        }
+
+        #[test]
+        fn test_cmp_equal((a, b, width) in gen_big_int_pair()) {
+            do_test_cmp_equal(a, b, width);
+        }
+
+         #[test]
+        fn test_cmp_equal_signed((a, b, width) in gen_big_int_pair()) {
+            do_test_cmp_equal_signed(a, b, width);
+        }
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::ir::value::tests::*;
-//     use crate::ir::value::*;
-//     use num_bigint::{BigInt, BigUint, Sign};
-//     use rand::{Rng, SeedableRng};
-//     use smallvec::smallvec;
-//
 //     #[test]
 //     fn test_split_borrow() {
 //         let data: &mut [Word] = &mut [0, 1, 2, 3];
@@ -854,41 +885,3 @@ mod tests {
 //         assert_eq!(src_a_3, &[1]);
 //         assert_eq!(src_b_3, &[0, 1]);
 //     }
-//
-//
-//
-
-//
-
-//
-//     fn do_test_cmp_greater_equal_signed(a: BigInt, b: BigInt, width: WidthInt) {
-//         do_test_cmp(a, b, width, cmp_greater_equal_signed, |a, b| a >= b)
-//     }
-//
-//     #[test]
-//     fn test_cmp_greater() {
-//         do_test_cmp_greater(BigUint::from(4u32), BigUint::from(3u32), 8);
-//     }
-//
-//     #[test]
-//     fn test_cmp_greater_signed() {
-//         do_test_cmp_greater_signed(BigInt::from(-4), BigInt::from(3), 8);
-//         do_test_cmp_greater_signed(BigInt::from(4), BigInt::from(-3), 8);
-//         do_test_cmp_greater_signed(BigInt::from(4), BigInt::from(3), 8);
-//         do_test_cmp_greater_signed(BigInt::from(3), BigInt::from(4), 8);
-//         do_test_cmp_greater_signed(BigInt::from(-4), BigInt::from(-3), 8);
-//         do_test_cmp_greater_signed(BigInt::from(-3), BigInt::from(-4), 8);
-//     }
-//
-//     #[test]
-//     fn test_cmp_greater_equal_signed() {
-//         do_test_cmp_greater_equal_signed(BigInt::from(-4), BigInt::from(3), 8);
-//         do_test_cmp_greater_equal_signed(BigInt::from(4), BigInt::from(-3), 8);
-//         do_test_cmp_greater_equal_signed(BigInt::from(4), BigInt::from(3), 8);
-//         do_test_cmp_greater_equal_signed(BigInt::from(3), BigInt::from(4), 8);
-//         do_test_cmp_greater_equal_signed(BigInt::from(-4), BigInt::from(-3), 8);
-//         do_test_cmp_greater_equal_signed(BigInt::from(-3), BigInt::from(-4), 8);
-//         do_test_cmp_greater_equal_signed(BigInt::from(-4), BigInt::from(-4), 8);
-//         do_test_cmp_greater_equal_signed(BigInt::from(4), BigInt::from(4), 8);
-//     }
-// }
