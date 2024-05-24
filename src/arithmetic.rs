@@ -418,6 +418,10 @@ mod tests {
         (out, width)
     }
 
+    fn bit_str_arg() -> impl Strategy<Value = String> {
+        "[01]+"
+    }
+
     fn do_test_concat(a: &str, b: &str) {
         let (a_vec, a_width) = from_bit_str(a);
         let (b_vec, b_width) = from_bit_str(b);
@@ -450,7 +454,7 @@ mod tests {
     }
 
     fn slice_args() -> impl Strategy<Value = (String, WidthInt, WidthInt)> {
-        "[01]+"
+        bit_str_arg()
             .prop_flat_map(|bits: String| {
                 let len = std::cmp::max(bits.len(), 1);
                 (Just(bits), 0..(len as WidthInt))
@@ -505,7 +509,7 @@ mod tests {
 
     /// biases `by` value to be more interesting
     fn shift_args() -> impl Strategy<Value = (String, WidthInt)> {
-        "[01]+".prop_flat_map(|bits: String| {
+        bit_str_arg().prop_flat_map(|bits: String| {
             let len = std::cmp::max(bits.len(), 1);
             let max_shift =
                 std::cmp::min(mask(bits.len() as WidthInt) + 1, WidthInt::MAX as Word) as WidthInt;
@@ -525,10 +529,23 @@ mod tests {
         assert_eq!(actual, expected, "{res_vec:?}");
     }
 
+    fn do_test_sign_ext(src: &str, by: WidthInt) {
+        assert!(!src.is_empty(), "sign extend only works for non zero bits");
+        let (src_vec, src_width) = from_bit_str(src);
+        let res_width = src_width + by;
+        let mut res_vec = value_vec(res_width);
+        sign_extend(&mut res_vec, &src_vec, src_width, res_width);
+        assert_unused_bits_zero(&res_vec, res_width);
+        let sign_bit = src.chars().next().unwrap().to_string();
+        let expected: String = format!("{}{}", sign_bit.repeat(by as usize), src);
+        let actual = to_bit_str(&res_vec, res_width);
+        assert_eq!(actual, expected, "{res_vec:?}");
+    }
+
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(10000))]
+        #![proptest_config(ProptestConfig::with_cases(2000))]
         #[test]
-        fn test_concat(a in "[01]*", b in "[01]*") {
+        fn test_concat(a in bit_str_arg(), b in bit_str_arg()) {
             do_test_concat(&a, &b);
         }
 
@@ -548,8 +565,13 @@ mod tests {
         }
 
         #[test]
-        fn test_zero_extend(s in "[01]*", by in 0..(1000 as WidthInt)) {
+        fn test_zero_extend(s in bit_str_arg(), by in 0..(1000 as WidthInt)) {
             do_test_zero_ext(&s, by);
+        }
+
+        #[test]
+        fn test_sign_extend(s in bit_str_arg(), by in 0..(1000 as WidthInt)) {
+            do_test_sign_ext(&s, by);
         }
     }
 }
@@ -577,28 +599,6 @@ mod tests {
 //         assert_eq!(dst3, &[2, 3]);
 //         assert_eq!(src_a_3, &[1]);
 //         assert_eq!(src_b_3, &[0, 1]);
-//     }
-//
-//
-//
-//     fn do_test_zero_ext(src: &str, by: WidthInt) {
-//         let (src_vec, src_width) = from_bit_str(src);
-//         let res_width = src_width + by;
-//         let mut res_vec = vec![0 as Word; res_width.div_ceil(Word::BITS) as usize];
-//         zero_extend(&mut res_vec, &src_vec);
-//         assert_unused_bits_zero(&res_vec, res_width);
-//         let expected: String = format!("{}{}", "0".repeat(by as usize), src);
-//         assert_eq!(to_bit_str(&res_vec, res_width), expected);
-//     }
-//
-//     #[test]
-//     fn test_zero_ext() {
-//         do_test_zero_ext("0", 1);
-//         do_test_zero_ext("1", 1);
-//         do_test_zero_ext("0", 16);
-//         do_test_zero_ext("1", 16);
-//         do_test_zero_ext("0", 13 + Word::BITS);
-//         do_test_zero_ext("1", 13 + Word::BITS);
 //     }
 //
 //     fn do_test_arith(
