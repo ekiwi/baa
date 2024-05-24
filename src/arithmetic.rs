@@ -351,14 +351,16 @@ pub(crate) fn cmp_greater(a: &[Word], b: &[Word]) -> bool {
 
 #[inline]
 pub(crate) fn is_neg(src: &[Word], width: WidthInt) -> bool {
-    let msb_bit_id = (width - 1) % WidthInt::BITS;
-    let msb_bit_value = (src.last().unwrap() >> msb_bit_id) & 1;
+    let msb_bit_id = (width - 1) % Word::BITS;
+    let msb_word = src.last().unwrap();
+    let msb_bit_value = ((msb_word) >> msb_bit_id) & 1;
     msb_bit_value == 1
 }
 
 #[inline]
 pub(crate) fn cmp_greater_signed(a: &[Word], b: &[Word], width: WidthInt) -> bool {
-    match (is_neg(a, width), is_neg(b, width)) {
+    let (is_neg_a, is_neg_b) = (is_neg(a, width), is_neg(b, width));
+    match (is_neg_a, is_neg_b) {
         (true, false) => false, // -|a| < |b|
         (false, true) => true,  // |a| > -|b|
         (false, false) => cmp_greater(a, b),
@@ -435,6 +437,19 @@ mod tests {
 
     fn bit_str_arg() -> impl Strategy<Value = String> {
         "[01]+"
+    }
+
+    fn do_test_is_neg(a: &str) {
+        let expected = a.chars().next().unwrap() == '1';
+        let (a_vec, a_width) = from_bit_str(a);
+        let actual = is_neg(&a_vec, a_width);
+        assert_eq!(actual, expected, "{a}")
+    }
+
+    #[test]
+    fn do_test_is_neg_regressions() {
+        let a = "0101101001111010000111000001011010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        do_test_is_neg(a);
     }
 
     fn do_test_concat(a: &str, b: &str) {
@@ -628,8 +643,26 @@ mod tests {
     }
 
     fn from_big_int(value: &BigInt, width: WidthInt) -> ValueVec {
+        // check to make sure things fit
+        assert!(
+            value.bits() + 1 <= width as u64,
+            "{value} does not fit into {width} bits. Needs at least {} bits.",
+            value.bits() + 1
+        );
         let mut out = value_vec(width);
         crate::io::bigint::from_big_int(&value, width, &mut out);
+        out
+    }
+
+    fn from_big_uint(value: &BigUint, width: WidthInt) -> ValueVec {
+        // check to make sure things fit
+        assert!(
+            value.bits() <= width as u64,
+            "{value} does not fit into {width} bits. Needs at least {} bits.",
+            value.bits()
+        );
+        let mut out = value_vec(width);
+        crate::io::bigint::from_big_uint(&value, width, &mut out);
         out
     }
 
@@ -647,8 +680,10 @@ mod tests {
         assert_unused_bits_zero(&res_vec, width);
 
         // check result
-        let expected_num = (big)(a.clone(), b.clone());
-        let expected = from_big_int(&expected_num, width);
+        let expected_mask = (BigInt::from(1) << width) - 1;
+        let expected_num: BigInt = big(a.clone(), b.clone()) & expected_mask;
+        // after masking, only the magnitude counts
+        let expected = from_big_uint(expected_num.magnitude(), width);
         assert_eq!(expected, res_vec, "{a} {b} {expected_num}");
     }
 
@@ -658,6 +693,11 @@ mod tests {
 
     fn do_test_sub(a: BigInt, b: BigInt, width: WidthInt) {
         do_test_arith(a, b, width, sub, |a, b| a - b)
+    }
+
+    #[test]
+    fn test_sub_regressions() {
+        do_test_sub(BigInt::from(-32), BigInt::from(32), 7);
     }
 
     fn do_test_mul(a: BigInt, b: BigInt, width: WidthInt) {
@@ -673,8 +713,60 @@ mod tests {
         );
     }
 
+    fn do_test_cmp_signed(
+        a: BigInt,
+        b: BigInt,
+        width: WidthInt,
+        our: fn(&[Word], &[Word], WidthInt) -> bool,
+        big: fn(BigInt, BigInt) -> bool,
+    ) {
+        let a_vec = from_big_int(&a, width);
+        let b_vec = from_big_int(&b, width);
+        let res_bool = our(&a_vec, &b_vec, width);
+        let expected_bool = big(a.clone(), b.clone());
+        assert_eq!(expected_bool, res_bool, "{a} {b} {expected_bool}");
+    }
+
+    fn do_test_cmp_unsigned(
+        a_signed: BigInt,
+        b_signed: BigInt,
+        width: WidthInt,
+        our: fn(&[Word], &[Word], WidthInt) -> bool,
+        big: fn(BigUint, BigUint) -> bool,
+    ) {
+        let a = a_signed.magnitude();
+        let b = b_signed.magnitude();
+        let a_vec = from_big_uint(a, width);
+        let b_vec = from_big_uint(b, width);
+        let res_bool = our(&a_vec, &b_vec, width);
+        let expected_bool = big(a.clone(), b.clone());
+        assert_eq!(expected_bool, res_bool, "{a} {b} {expected_bool}");
+    }
+
+    fn do_test_cmp_greater(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_cmp_unsigned(a, b, width, |a, b, _| cmp_greater(a, b), |a, b| a > b)
+    }
+    fn do_test_cmp_greater_signed(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_cmp_signed(a, b, width, cmp_greater_signed, |a, b| a > b)
+    }
+
+    #[test]
+    fn do_test_cmp_greater_signed_regressions() {
+        do_test_cmp_greater_signed(
+          BigInt::parse_bytes(b"2812269376756553621043437133860079836754636903388049287067766551164406258259928767528960", 10).unwrap(),
+          BigInt::parse_bytes(b"16927137481", 10).unwrap(),
+          292
+        );
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
+
+        #[test]
+        fn test_is_neg(a in bit_str_arg()) {
+            do_test_is_neg(&a);
+        }
+
         #[test]
         fn test_concat(a in bit_str_arg(), b in bit_str_arg()) {
             do_test_concat(&a, &b);
@@ -725,6 +817,16 @@ mod tests {
         fn test_mul((a, b, width) in gen_big_int_pair()) {
             do_test_mul(a, b, width);
         }
+
+        #[test]
+        fn test_cmp_greater((a, b, width) in gen_big_int_pair()) {
+            do_test_cmp_greater(a, b, width);
+        }
+
+         #[test]
+        fn test_cmp_greater_signed((a, b, width) in gen_big_int_pair()) {
+            do_test_cmp_greater_signed(a, b, width);
+        }
     }
 }
 
@@ -755,34 +857,9 @@ mod tests {
 //
 //
 //
-//     fn do_test_cmp(
-//         a: BigInt,
-//         b: BigInt,
-//         width: WidthInt,
-//         our: fn(&[Word], &[Word], WidthInt) -> bool,
-//         big: fn(BigInt, BigInt) -> bool,
-//     ) {
-//         let a_vec = from_big_int(&a, width);
-//         let b_vec = from_big_int(&b, width);
-//         let res_bool = (our)(&a_vec, &b_vec, width);
-//         let expected_bool = (big)(a.clone(), b.clone());
-//         assert_eq!(expected_bool, res_bool, "{a} {b} {expected_bool}");
-//     }
+
 //
-//     fn do_test_cmp_greater(a: BigUint, b: BigUint, width: WidthInt) {
-//         let a_signed = BigInt::from_biguint(Sign::Plus, a);
-//         let b_signed = BigInt::from_biguint(Sign::Plus, b);
-//         do_test_cmp(
-//             a_signed,
-//             b_signed,
-//             width,
-//             |a, b, _| cmp_greater(a, b),
-//             |a, b| a > b,
-//         )
-//     }
-//     fn do_test_cmp_greater_signed(a: BigInt, b: BigInt, width: WidthInt) {
-//         do_test_cmp(a, b, width, cmp_greater_signed, |a, b| a > b)
-//     }
+
 //
 //     fn do_test_cmp_greater_equal_signed(a: BigInt, b: BigInt, width: WidthInt) {
 //         do_test_cmp(a, b, width, cmp_greater_equal_signed, |a, b| a >= b)

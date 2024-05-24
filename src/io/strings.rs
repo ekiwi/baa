@@ -79,7 +79,7 @@ mod tests {
     }
 
     #[test]
-    fn tst_to_bit_str_with_extra_words() {
+    fn test_to_bit_str_with_extra_words() {
         let input = value_vec(7);
         assert_eq!(to_bit_str(&input, 7), "0000000");
         assert_eq!(to_bit_str(&input, 33), "0".repeat(33));
