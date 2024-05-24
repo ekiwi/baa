@@ -409,6 +409,7 @@ mod tests {
     use crate::io::strings::to_bit_str;
     use crate::value::owned::{value_vec, ValueVec};
     use proptest::prelude::*;
+    use smallvec::smallvec;
 
     fn from_bit_str(s: &str) -> (ValueVec, WidthInt) {
         let width = s.len() as WidthInt;
@@ -513,8 +514,16 @@ mod tests {
         })
     }
 
-    #[test]
-    fn test_shift_right_regression() {}
+    fn do_test_zero_ext(src: &str, by: WidthInt) {
+        let (src_vec, src_width) = from_bit_str(src);
+        let res_width = src_width + by;
+        let mut res_vec = value_vec(res_width);
+        zero_extend(&mut res_vec, &src_vec);
+        assert_unused_bits_zero(&res_vec, res_width);
+        let expected: String = format!("{}{}", "0".repeat(by as usize), src);
+        let actual = to_bit_str(&res_vec, res_width);
+        assert_eq!(actual, expected, "{res_vec:?}");
+    }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(10000))]
@@ -536,6 +545,11 @@ mod tests {
         #[test]
         fn test_shift_left((s, by) in shift_args()) {
             do_test_shift_left(&s, by);
+        }
+
+        #[test]
+        fn test_zero_extend(s in "[01]*", by in 0..(1000 as WidthInt)) {
+            do_test_zero_ext(&s, by);
         }
     }
 }

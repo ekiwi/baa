@@ -65,6 +65,7 @@ pub(crate) fn from_bit_str(bits: &str, out: &mut [Word]) -> WidthInt {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::value::owned::value_vec;
     use proptest::proptest;
 
     fn do_test_from_to_bit_str(s: String) {
@@ -75,6 +76,13 @@ mod tests {
         crate::arithmetic::assert_unused_bits_zero(&out, width);
         let s_out = to_bit_str(&out, width);
         assert_eq!(s, s_out);
+    }
+
+    #[test]
+    fn tst_to_bit_str_with_extra_words() {
+        let input = value_vec(7);
+        assert_eq!(to_bit_str(&input, 7), "0000000");
+        assert_eq!(to_bit_str(&input, 33), "0".repeat(33));
     }
 
     proptest! {

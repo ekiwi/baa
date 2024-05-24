@@ -97,7 +97,7 @@ impl BitVecValue {
 
 #[inline]
 pub(crate) fn value_vec(width: WidthInt) -> ValueVec {
-    smallvec![0; width.div_ceil(WidthInt::BITS) as usize]
+    smallvec![0; width.div_ceil(Word::BITS) as usize]
 }
 
 impl<V: BitVecOps> PartialEq<V> for BitVecValue {
