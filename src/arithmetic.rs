@@ -424,7 +424,6 @@ mod tests {
     use crate::io::strings::to_bit_str;
     use crate::value::owned::{value_vec, ValueVec};
     use proptest::prelude::*;
-    use smallvec::smallvec;
 
     fn from_bit_str(s: &str) -> (ValueVec, WidthInt) {
         let width = s.len() as WidthInt;
@@ -446,6 +445,7 @@ mod tests {
         concat(&mut c_vec, &a_vec, &b_vec, b_width);
         assert_unused_bits_zero(&c_vec, c_width);
         let expected = format!("{a}{b}");
+        assert_eq!(to_bit_str(&c_vec, c_width), expected);
     }
 
     fn do_test_slice(src: &str, hi: WidthInt, lo: WidthInt) {
@@ -590,6 +590,72 @@ mod tests {
         assert_eq!(actual, expected, "{res_vec:?}");
     }
 
+    use num_bigint::*;
+    fn gen_big_uint(bits: WidthInt) -> impl Strategy<Value = BigUint> {
+        let byte_count = bits.div_ceil(u8::BITS);
+        let words = prop::collection::vec(any::<u8>(), byte_count as usize);
+        words.prop_map(move |mut words| {
+            // first we mask the msbs
+            if bits % u8::BITS > 0 {
+                let mask = (1u8 << (bits % u8::BITS)) - 1;
+                *words.last_mut().unwrap() &= mask;
+            }
+            BigUint::from_bytes_le(&words)
+        })
+    }
+
+    fn gen_big_int(bits: WidthInt) -> impl Strategy<Value = BigInt> {
+        gen_big_uint(bits - 1)
+            .prop_flat_map(|unsigned| (any::<bool>(), Just(unsigned)))
+            .prop_map(|(negative, unsigned)| {
+                let sign = if negative { Sign::Minus } else { Sign::Plus };
+                BigInt::from_biguint(sign, unsigned)
+            })
+    }
+
+    // generates two big ints of equal bit width
+    fn gen_big_int_pair() -> impl Strategy<Value = (BigInt, BigInt, WidthInt)> {
+        let max_bits = 16 * Word::BITS;
+        (1..max_bits).prop_flat_map(|bits| (gen_big_int(bits), gen_big_int(bits), Just(bits)))
+    }
+
+    fn from_big_int(value: &BigInt, width: WidthInt) -> ValueVec {
+        let mut out = value_vec(width);
+        crate::io::bigint::from_big_int(&value, width, &mut out);
+        out
+    }
+
+    fn do_test_arith(
+        a: BigInt,
+        b: BigInt,
+        width: WidthInt,
+        our: fn(&mut [Word], &[Word], &[Word], WidthInt),
+        big: fn(BigInt, BigInt) -> BigInt,
+    ) {
+        let a_vec = from_big_int(&a, width);
+        let b_vec = from_big_int(&b, width);
+        let mut res_vec: ValueVec = value_vec(width);
+        our(&mut res_vec, &a_vec, &b_vec, width);
+        assert_unused_bits_zero(&res_vec, width);
+
+        // check result
+        let expected_num = (big)(a.clone(), b.clone());
+        let expected = from_big_int(&expected_num, width);
+        assert_eq!(expected, res_vec, "{a} {b} {expected_num}");
+    }
+
+    fn do_test_add(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_arith(a, b, width, add, |a, b| a + b)
+    }
+
+    fn do_test_sub(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_arith(a, b, width, sub, |a, b| a - b)
+    }
+
+    fn do_test_mul(a: BigInt, b: BigInt, width: WidthInt) {
+        do_test_arith(a, b, width, mul, |a, b| a * b)
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(2000))]
         #[test]
@@ -626,6 +692,11 @@ mod tests {
         fn test_sign_extend(s in bit_str_arg(), by in 0..(1000 as WidthInt)) {
             do_test_sign_ext(&s, by);
         }
+
+        #[test]
+        fn test_add((a, b, width) in gen_big_int_pair()) {
+            do_test_add(a, b, width);
+        }
     }
 }
 
@@ -654,54 +725,7 @@ mod tests {
 //         assert_eq!(src_b_3, &[0, 1]);
 //     }
 //
-//     fn do_test_arith(
-//         width: WidthInt,
-//         our: fn(&mut [Word], &[Word], &[Word], WidthInt),
-//         big: fn(BigInt, BigInt) -> BigInt,
-//         rng: &mut impl Rng,
-//     ) {
-//         let (a_vec, _) = from_bit_str(&random_bit_str(width, rng));
-//         let (b_vec, _) = from_bit_str(&random_bit_str(width, rng));
-//         let mut res_vec: ValueVec = smallvec![0 as Word; width.div_ceil(Word::BITS) as usize];
-//         (our)(&mut res_vec, &a_vec, &b_vec, width);
-//         assert_unused_bits_zero(&res_vec, width);
 //
-//         // check result
-//         let (a_num, b_num) = (to_big_int(&a_vec, width), to_big_int(&b_vec, width));
-//         let expected_num = (big)(a_num.clone(), b_num.clone());
-//         let expected = from_big_int(&expected_num, width);
-//         assert_eq!(expected, res_vec, "{a_num} {b_num} {expected_num}");
-//     }
-//
-//     fn do_test_add(width: WidthInt, rng: &mut impl Rng) {
-//         do_test_arith(width, add, |a, b| a + b, rng)
-//     }
-//
-//     #[test]
-//     fn test_add() {
-//         let mut rng = rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(1);
-//         do_test_add(1, &mut rng);
-//         do_test_add(1, &mut rng);
-//         do_test_add(1, &mut rng);
-//         do_test_add(35, &mut rng);
-//         do_test_add(35, &mut rng);
-//         do_test_add(1789, &mut rng);
-//     }
-//
-//     fn do_test_sub(width: WidthInt, rng: &mut impl Rng) {
-//         do_test_arith(width, sub, |a, b| a - b, rng)
-//     }
-//
-//     #[test]
-//     fn test_sub() {
-//         let mut rng = rand_xoshiro::Xoshiro256PlusPlus::seed_from_u64(1);
-//         do_test_sub(1, &mut rng);
-//         do_test_sub(1, &mut rng);
-//         do_test_sub(1, &mut rng);
-//         do_test_sub(35, &mut rng);
-//         do_test_sub(35, &mut rng);
-//         do_test_sub(1789, &mut rng);
-//     }
 //
 //     fn do_test_cmp(
 //         a: BigInt,

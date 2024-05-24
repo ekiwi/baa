@@ -3,7 +3,7 @@
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 //
 // methods to convert to/from Value
-#[cfg(feature = "bigint")]
+#[cfg(any(test, feature = "bigint"))]
 pub(crate) mod bigint;
 pub(crate) mod strings;
 
