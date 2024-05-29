@@ -18,5 +18,5 @@ pub enum Error {}
 
 pub use ops::{BitVecMutOps, BitVecOps};
 pub use value::borrowed::{BitVecValueMutRef, BitVecValueRef};
-pub use value::indexed::{BitVecValueIndex, ValueStorage};
+pub use value::indexed::{BitVecValueIndex, GetBitVecMutRef, GetBitVecRef};
 pub use value::owned::BitVecValue;

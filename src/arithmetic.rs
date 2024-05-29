@@ -869,19 +869,3 @@ mod tests {
         }
     }
 }
-
-//     #[test]
-//     fn test_split_borrow() {
-//         let data: &mut [Word] = &mut [0, 1, 2, 3];
-//         let (dst, src) = split_borrow_1(data, 0..1, 2..4);
-//         assert_eq!(dst, &[0]);
-//         assert_eq!(src, &[2, 3]);
-//         let (dst2, src2) = split_borrow_1(data, 2..4, 0..2);
-//         assert_eq!(dst2, &[2, 3]);
-//         assert_eq!(src2, &[0, 1]);
-//
-//         let (dst3, src_a_3, src_b_3) = split_borrow_2(data, 2..4, 1..2, 0..2);
-//         assert_eq!(dst3, &[2, 3]);
-//         assert_eq!(src_a_3, &[1]);
-//         assert_eq!(src_b_3, &[0, 1]);
-//     }
