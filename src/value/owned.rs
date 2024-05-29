@@ -16,15 +16,6 @@ pub struct BitVecValue {
     pub(crate) words: ValueVec,
 }
 
-const OWNED_TRUE: BitVecValue = BitVecValue {
-    width: 1,
-    words: SmallVec::from_const([1, 0]),
-};
-const OWNED_FALSE: BitVecValue = BitVecValue {
-    width: 1,
-    words: SmallVec::from_const([0, 0]),
-};
-
 impl BitVecValue {
     /// Parse a string of 1s and 0s. The width of the resulting value is the number of digits.
     pub fn from_bit_str(value: &str) -> Self {
@@ -64,10 +55,10 @@ impl BitVecValue {
     }
 
     pub fn tru() -> Self {
-        OWNED_TRUE
+        Self::from_u64(1, 1)
     }
     pub fn fals() -> Self {
-        OWNED_FALSE
+        Self::from_u64(0, 1)
     }
 
     #[cfg(feature = "bigint")]
@@ -99,13 +90,13 @@ impl BitVecValue {
 /// Owned dense bit-vector array.
 #[derive(Clone)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
-pub struct DenseArrayValue {
+pub struct ArrayValue {
     pub(crate) index_width: WidthInt,
     pub(crate) data_width: WidthInt,
     pub(crate) words: Vec<Word>,
 }
 
-impl ArrayOps for DenseArrayValue {
+impl ArrayOps for ArrayValue {
     fn index_width(&self) -> WidthInt {
         self.index_width
     }

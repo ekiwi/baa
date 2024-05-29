@@ -5,7 +5,8 @@
 // Access a slice of `Word` as a bit-vector.
 
 use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
-use crate::{WidthInt, Word};
+use crate::{BitVecOps, WidthInt, Word};
+use std::collections::HashMap;
 
 type WordIndex = u32;
 
@@ -209,10 +210,80 @@ fn split_borrow_2(
     (dst_words, a_words, b_words)
 }
 
+/// Ensures that each bit vector value gets a unique index. And each combination of value and
+/// width will get a unique BitVecValueIndex
+pub struct BitVecValueInterner {
+    words: Vec<Word>,
+    small: HashMap<Word, WordIndex>,
+    large: HashMap<Box<[Word]>, WordIndex>,
+}
+
+impl BitVecValueInterner {
+    pub fn new() -> Self {
+        // initialize with some important constants
+        let words = vec![0, 1, 2, 3, 4, 5, 6, 7];
+        let small = HashMap::new();
+        let large = HashMap::new();
+        Self {
+            words,
+            small,
+            large,
+        }
+    }
+
+    pub fn get_index<I: BitVecOps>(&mut self, value: I) -> BitVecValueIndex {
+        let (words, width) = (value.words(), value.width());
+        if let &[word] = words {
+            debug_assert!(width <= Word::BITS);
+            if word < 8 {
+                BitVecValueIndex::new(word as WordIndex, width)
+            } else {
+                if let Some(index) = self.small.get(&word) {
+                    BitVecValueIndex::new(*index, width)
+                } else {
+                    let index = self.words.len() as WordIndex;
+                    self.words.push(word);
+                    self.small.insert(word, index);
+                    BitVecValueIndex::new(index, width)
+                }
+            }
+        } else {
+            debug_assert!(width > Word::BITS);
+            if let Some(index) = self.large.get(words) {
+                BitVecValueIndex::new(*index, width)
+            } else {
+                let index = self.words.len() as WordIndex;
+                self.words.extend_from_slice(words);
+                self.large.insert(Box::from(words), index);
+                BitVecValueIndex::new(index, width)
+            }
+        }
+    }
+}
+
+impl<'a, I> GetBitVecRef<I, BitVecValueRef<'a>> for &'a BitVecValueInterner
+where
+    I: AsRef<BitVecValueIndex>,
+{
+    fn get_ref(self, index: I) -> BitVecValueRef<'a> {
+        (&self.words).get_ref(index)
+    }
+}
+
+impl<'a, I> GetBitVecRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)>
+    for &'a BitVecValueInterner
+where
+    I: AsRef<BitVecValueIndex>,
+{
+    fn get_ref(self, index: (I, I)) -> (BitVecValueRef<'a>, BitVecValueRef<'a>) {
+        (&self.words).get_ref(index)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::BitVecMutOps;
+    use crate::{BitVecMutOps, BitVecValue};
 
     #[test]
     fn type_size() {
@@ -246,5 +317,12 @@ mod tests {
         assert_eq!(dst3, &[2, 3]);
         assert_eq!(src_a_3, &[1]);
         assert_eq!(src_b_3, &[0, 1]);
+    }
+
+    #[test]
+    fn test_interner() {
+        let mut i = BitVecValueInterner::new();
+        assert_eq!(i.get_index(BitVecValue::tru()).index, 1);
+        assert_eq!(i.get_index(BitVecValue::fals()).index, 0);
     }
 }
