@@ -102,7 +102,7 @@ impl BitVecValue {
 pub struct DenseArrayValue {
     pub(crate) index_width: WidthInt,
     pub(crate) data_width: WidthInt,
-    pub(crate) words: ValueVec,
+    pub(crate) words: Vec<Word>,
 }
 
 impl ArrayOps for DenseArrayValue {
