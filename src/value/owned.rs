@@ -2,7 +2,8 @@
 // released under BSD 3-Clause License
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 
-use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
+use crate::ops::ArrayOps;
+use crate::{BitVecMutOps, BitVecOps, BitVecValueRef, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
 pub(crate) type ValueVec = SmallVec<[Word; 2]>;
@@ -92,6 +93,32 @@ impl BitVecValue {
         let mut words = value_vec(bits);
         crate::io::fraction::from_fixed_point(value, bits, fraction_width, &mut words);
         Self { width: bits, words }
+    }
+}
+
+/// Owned dense bit-vector array.
+#[derive(Clone)]
+#[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
+pub struct DenseArrayValue {
+    pub(crate) index_width: WidthInt,
+    pub(crate) data_width: WidthInt,
+    pub(crate) words: ValueVec,
+}
+
+impl ArrayOps for DenseArrayValue {
+    fn index_width(&self) -> WidthInt {
+        self.index_width
+    }
+
+    fn data_width(&self) -> WidthInt {
+        self.data_width
+    }
+
+    fn select<I>(&self, index: I) -> BitVecValueRef
+    where
+        I: for<'a> Into<BitVecValueRef<'a>>,
+    {
+        todo!()
     }
 }
 

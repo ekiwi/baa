@@ -4,7 +4,7 @@
 //
 // Traits for operations on bit-vectors.
 
-use crate::{BitVecValue, WidthInt, Word};
+use crate::{BitVecValue, BitVecValueRef, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
 /// Declares an arithmetic function which takes in two equal size bitvector and yields a
@@ -301,4 +301,24 @@ pub trait BitVecMutOps: BitVecOps {
     fn set_from_big_uint(&mut self, value: &num_bigint::BigUint) {
         crate::io::bigint::from_big_uint(value, self.width(), self.words_mut());
     }
+}
+
+pub trait ArrayOps {
+    fn index_width(&self) -> WidthInt;
+    fn data_width(&self) -> WidthInt;
+    fn select<I>(&self, index: I) -> BitVecValueRef
+    where
+        I: for<'a> Into<BitVecValueRef<'a>>;
+    fn is_equal<R: ArrayOps + ?Sized>(&self, rhs: &R) -> bool {
+        debug_assert_eq!(self.index_width(), rhs.index_width());
+        debug_assert_eq!(self.data_width(), rhs.data_width());
+        todo!()
+    }
+}
+
+pub trait ArrayMutOps: ArrayOps {
+    fn store<I, D>(&mut self, index: I, data: D)
+    where
+        I: for<'a> Into<BitVecValueRef<'a>>,
+        D: for<'a> Into<BitVecValueRef<'a>>;
 }
