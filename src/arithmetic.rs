@@ -422,7 +422,7 @@ pub(crate) fn assert_unused_bits_zero(value: &[Word], width: WidthInt) {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::io::strings::to_bit_str;
     use crate::value::owned::{value_vec, ValueVec};
@@ -607,7 +607,7 @@ mod tests {
     }
 
     use num_bigint::*;
-    fn gen_big_uint(bits: WidthInt) -> impl Strategy<Value = BigUint> {
+    pub(crate) fn gen_big_uint(bits: WidthInt) -> impl Strategy<Value = BigUint> {
         let byte_count = bits.div_ceil(u8::BITS);
         let words = prop::collection::vec(any::<u8>(), byte_count as usize);
         words.prop_map(move |mut words| {
@@ -620,7 +620,7 @@ mod tests {
         })
     }
 
-    fn gen_big_int(bits: WidthInt) -> impl Strategy<Value = BigInt> {
+    pub(crate) fn gen_big_int(bits: WidthInt) -> impl Strategy<Value = BigInt> {
         gen_big_uint(bits - 1)
             .prop_flat_map(|unsigned| (any::<bool>(), Just(unsigned)))
             .prop_map(|(negative, unsigned)| {

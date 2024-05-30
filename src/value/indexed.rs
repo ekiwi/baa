@@ -325,4 +325,34 @@ mod tests {
         assert_eq!(i.get_index(BitVecValue::tru()).index, 1);
         assert_eq!(i.get_index(BitVecValue::fals()).index, 0);
     }
+
+    use num_bigint::*;
+    use proptest::prelude::*;
+
+    #[cfg(feature = "bigint")]
+    fn interner_should_return_same_value(value: &BigInt, width: WidthInt) {
+        let mut intern = BitVecValueInterner::new();
+        let i0 = intern.get_index(BitVecValue::from_big_int(value, width));
+        let i1 = intern.get_index(BitVecValue::from_big_int(value, width));
+        assert_eq!(i0.index, i1.index);
+        assert_eq!(i0.width, i1.width);
+        let v0 = intern.get_ref(i0);
+        assert_eq!(BitVecValue::from_big_int(value, width), v0);
+    }
+
+    fn gen_big_int_and_width() -> impl Strategy<Value = (BigInt, WidthInt)> {
+        let max_bits = 16 * Word::BITS;
+        (1..max_bits)
+            .prop_flat_map(|width| (crate::arithmetic::tests::gen_big_int(width), Just(width)))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(2000))]
+
+        #[test]
+        #[cfg(feature = "bigint")]
+        fn prop_test_interner((value, width) in gen_big_int_and_width()) {
+            interner_should_return_same_value(&value, width);
+        }
+    }
 }
