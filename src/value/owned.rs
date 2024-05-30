@@ -2,8 +2,8 @@
 // released under BSD 3-Clause License
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 
-use crate::ops::ArrayOps;
-use crate::{BitVecMutOps, BitVecOps, BitVecValueRef, WidthInt, Word};
+use crate::ops::{ArrayMutOps, ArrayOps};
+use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
 pub(crate) type ValueVec = SmallVec<[Word; 2]>;
@@ -105,11 +105,14 @@ impl ArrayOps for ArrayValue {
         self.data_width
     }
 
-    fn select<I>(&self, index: I) -> BitVecValueRef
-    where
-        I: for<'a> Into<BitVecValueRef<'a>>,
-    {
-        todo!()
+    fn words(&self) -> &[Word] {
+        &self.words
+    }
+}
+
+impl ArrayMutOps for ArrayValue {
+    fn words_mut(&mut self) -> &mut [Word] {
+        &mut self.words
     }
 }
 

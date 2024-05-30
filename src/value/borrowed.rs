@@ -2,7 +2,7 @@
 // released under BSD 3-Clause License
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 //
-// Borrowed bit-vector values.
+// Borrowed bit-vector and array values.
 
 use crate::{BitVecMutOps, BitVecOps, BitVecValue, WidthInt, Word};
 

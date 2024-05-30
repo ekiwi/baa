@@ -4,7 +4,7 @@
 //
 // Traits for operations on bit-vectors.
 
-use crate::{BitVecValue, BitVecValueRef, WidthInt, Word};
+use crate::{BitVecValue, BitVecValueMutRef, BitVecValueRef, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
 /// Declares an arithmetic function which takes in two equal size bitvector and yields a
@@ -278,47 +278,49 @@ pub trait BitVecOps {
 pub trait BitVecMutOps: BitVecOps {
     fn words_mut(&mut self) -> &mut [Word];
 
-    fn set_from_word(&mut self, value: Word) {
-        if value > 0 {
-            self.words_mut()[0] = value;
-            crate::arithmetic::clear(&mut self.words_mut()[1..]);
-        } else {
-            crate::arithmetic::clear(self.words_mut());
-        }
-    }
-
-    fn set_from_bit_str(&mut self, value: &str) {
-        debug_assert_eq!(self.width() as usize, value.len());
-        crate::io::strings::from_bit_str(value, self.words_mut());
-    }
-
-    #[cfg(feature = "bigint")]
-    fn set_from_big_int(&mut self, value: &num_bigint::BigInt) {
-        crate::io::bigint::from_big_int(value, self.width(), self.words_mut());
-    }
-
-    #[cfg(feature = "bigint")]
-    fn set_from_big_uint(&mut self, value: &num_bigint::BigUint) {
-        crate::io::bigint::from_big_uint(value, self.width(), self.words_mut());
+    fn assign<V: BitVecOps>(&mut self, value: V) {
+        debug_assert_eq!(self.width(), value.width());
+        debug_assert_eq!(self.words_mut().len(), value.words().len());
+        self.words_mut().copy_from_slice(value.words());
     }
 }
 
+pub const DENSE_ARRAY_MAX_INDEX_WIDTH: WidthInt = 48;
+
+/// Operations implemented by read-only array values with a dense representation.
 pub trait ArrayOps {
     fn index_width(&self) -> WidthInt;
     fn data_width(&self) -> WidthInt;
-    fn select<I>(&self, index: I) -> BitVecValueRef
-    where
-        I: for<'a> Into<BitVecValueRef<'a>>;
+    fn words(&self) -> &[Word];
+    fn words_per_element(&self) -> usize {
+        self.data_width().div_ceil(Word::BITS) as usize
+    }
+    fn select<I: BitVecOps>(&self, index: I) -> BitVecValueRef {
+        debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
+        debug_assert_eq!(self.index_width(), index.width());
+        debug_assert_eq!(index.words().len(), 1);
+        let start = self.words_per_element() * index.words()[0] as usize;
+        let end = start + self.words_per_element();
+        BitVecValueRef::new(self.data_width(), &self.words()[start..end])
+    }
     fn is_equal<R: ArrayOps + ?Sized>(&self, rhs: &R) -> bool {
         debug_assert_eq!(self.index_width(), rhs.index_width());
         debug_assert_eq!(self.data_width(), rhs.data_width());
-        todo!()
+        self.words() == rhs.words()
     }
 }
 
+/// Operations implemented by mutable array values with a dense representation.
 pub trait ArrayMutOps: ArrayOps {
-    fn store<I, D>(&mut self, index: I, data: D)
-    where
-        I: for<'a> Into<BitVecValueRef<'a>>,
-        D: for<'a> Into<BitVecValueRef<'a>>;
+    fn words_mut(&mut self) -> &mut [Word];
+    fn store<I: BitVecOps, D: BitVecOps>(&mut self, index: I, data: D) {
+        debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
+        debug_assert_eq!(self.index_width(), index.width());
+        debug_assert_eq!(index.words().len(), 1);
+        let start = self.words_per_element() * index.words()[0] as usize;
+        let end = start + self.words_per_element();
+        let mut element =
+            BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end]);
+        element.assign(data);
+    }
 }

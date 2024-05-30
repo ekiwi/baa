@@ -5,6 +5,7 @@
 // Access a slice of `Word` as a bit-vector.
 
 use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
+use crate::ops::{ArrayMutOps, ArrayOps};
 use crate::{BitVecOps, WidthInt, Word};
 use std::collections::HashMap;
 
@@ -306,7 +307,7 @@ mod tests {
             let mut backend = [0; 16];
             let (mut a, _b) =
                 backend.get_mut_ref((BitVecValueIndex::new(0, 8), BitVecValueIndex::new(1, 8)));
-            a.set_from_word(1234);
+            a.assign(BitVecValue::from_u64(1234, 8));
             assert_eq!(backend[0], 1234);
         }
     }
