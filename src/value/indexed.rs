@@ -231,6 +231,14 @@ impl BitVecValueInterner {
         }
     }
 
+    pub fn is_zero<I: AsRef<BitVecValueIndex>>(index: I) -> bool {
+        index.as_ref().index == 0
+    }
+
+    pub fn is_one<I: AsRef<BitVecValueIndex>>(index: I) -> bool {
+        index.as_ref().index == 1
+    }
+
     pub fn get_index<I: BitVecOps>(&mut self, value: I) -> BitVecValueIndex {
         let (words, width) = (value.words(), value.width());
         if let &[word] = words {
@@ -324,6 +332,16 @@ mod tests {
         let mut i = BitVecValueInterner::new();
         assert_eq!(i.get_index(BitVecValue::tru()).index, 1);
         assert_eq!(i.get_index(BitVecValue::fals()).index, 0);
+        assert_eq!(i.get_index(BitVecValue::from_u64(0, 4)).index, 0);
+        assert!(BitVecValueInterner::is_zero(
+            i.get_index(BitVecValue::from_u64(0, 4))
+        ));
+        assert!(!BitVecValueInterner::is_one(
+            i.get_index(BitVecValue::from_u64(0, 4))
+        ));
+        assert!(BitVecValueInterner::is_one(
+            i.get_index(BitVecValue::from_u64(1, 4))
+        ));
     }
 
     use num_bigint::*;
