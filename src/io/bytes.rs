@@ -17,7 +17,7 @@ pub(crate) fn to_bytes_le(values: &[Word], width: WidthInt) -> Vec<u8> {
                 break;
             }
             out.push((value & BYTE_MASK) as u8);
-            value = value >> u8::BITS;
+            value >>= u8::BITS;
         }
     }
     out
@@ -70,7 +70,7 @@ mod tests {
         from_bytes_le(b, width, &mut out);
         crate::arithmetic::assert_unused_bits_zero(&out, width);
         let b_out = to_bytes_le(&out, width);
-        assert_eq!(b.as_ref(), b_out);
+        assert_eq!(b, b_out);
     }
 
     #[test]

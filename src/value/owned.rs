@@ -128,7 +128,7 @@ pub(crate) fn value_vec(width: WidthInt) -> ValueVec {
 
 impl<V: BitVecOps> PartialEq<V> for BitVecValue {
     fn eq(&self, other: &V) -> bool {
-        debug_assert!(!(other.width() == self.width) || other.words().len() == self.words.len());
+        debug_assert!(other.width() != self.width || other.words().len() == self.words.len());
         other.width() == self.width && other.words() == self.words.as_slice()
     }
 }

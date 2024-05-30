@@ -415,7 +415,7 @@ pub(crate) mod tests {
     }
 
     fn do_test_is_neg(a: &str) {
-        let expected = a.chars().next().unwrap() == '1';
+        let expected = a.starts_with('1');
         let (a_vec, a_width) = from_bit_str(a);
         let actual = is_neg(&a_vec, a_width);
         assert_eq!(actual, expected, "{a}")
@@ -620,12 +620,12 @@ pub(crate) mod tests {
     fn from_big_int(value: &BigInt, width: WidthInt) -> ValueVec {
         // check to make sure things fit
         assert!(
-            value.bits() + 1 <= width as u64,
+            value.bits() < width as u64,
             "{value} does not fit into {width} bits. Needs at least {} bits.",
             value.bits() + 1
         );
         let mut out = value_vec(width);
-        crate::io::bigint::from_big_int(&value, width, &mut out);
+        crate::io::bigint::from_big_int(value, width, &mut out);
         out
     }
 
@@ -637,7 +637,7 @@ pub(crate) mod tests {
             value.bits()
         );
         let mut out = value_vec(width);
-        crate::io::bigint::from_big_uint(&value, width, &mut out);
+        crate::io::bigint::from_big_uint(value, width, &mut out);
         out
     }
 

@@ -102,7 +102,7 @@ pub trait BitVecOps {
             } else {
                 debug_assert_eq!(Word::BITS, 64);
                 debug_assert_eq!(self.words().len(), 0);
-                Some(self.words()[0] as u64)
+                Some(self.words()[0])
             }
         } else {
             None

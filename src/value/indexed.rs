@@ -37,7 +37,7 @@ impl BitVecValueIndex {
 
 impl AsRef<BitVecValueIndex> for BitVecValueIndex {
     fn as_ref(&self) -> &BitVecValueIndex {
-        &self
+        self
     }
 }
 
@@ -218,6 +218,12 @@ pub struct BitVecValueInterner {
     large: HashMap<Box<[Word]>, WordIndex>,
 }
 
+impl Default for BitVecValueInterner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BitVecValueInterner {
     pub fn new() -> Self {
         // initialize with some important constants
@@ -245,15 +251,13 @@ impl BitVecValueInterner {
             debug_assert!(width <= Word::BITS);
             if word < 8 {
                 BitVecValueIndex::new(word as WordIndex, width)
+            } else if let Some(index) = self.small.get(&word) {
+                BitVecValueIndex::new(*index, width)
             } else {
-                if let Some(index) = self.small.get(&word) {
-                    BitVecValueIndex::new(*index, width)
-                } else {
-                    let index = self.words.len() as WordIndex;
-                    self.words.push(word);
-                    self.small.insert(word, index);
-                    BitVecValueIndex::new(index, width)
-                }
+                let index = self.words.len() as WordIndex;
+                self.words.push(word);
+                self.small.insert(word, index);
+                BitVecValueIndex::new(index, width)
             }
         } else {
             debug_assert!(width > Word::BITS);
