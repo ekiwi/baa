@@ -85,6 +85,11 @@ impl BitVecValue {
         crate::io::fraction::from_fixed_point(value, bits, fraction_width, &mut words);
         Self { width: bits, words }
     }
+
+    /// Raw constructor for internal use.
+    pub(crate) fn new(width: WidthInt, words: ValueVec) -> Self {
+        Self { width, words }
+    }
 }
 
 /// Owned dense bit-vector array.

@@ -5,7 +5,6 @@
 // Access a slice of `Word` as a bit-vector.
 
 use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
-use crate::ops::{ArrayMutOps, ArrayOps};
 use crate::{BitVecOps, WidthInt, Word};
 use std::collections::HashMap;
 
@@ -359,6 +358,7 @@ mod tests {
         assert_eq!(BitVecValue::from_big_int(value, width), v0);
     }
 
+    #[allow(unused)]
     fn gen_big_int_and_width() -> impl Strategy<Value = (BigInt, WidthInt)> {
         let max_bits = 16 * Word::BITS;
         (1..max_bits)

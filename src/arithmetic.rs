@@ -42,22 +42,6 @@ pub(crate) fn assign(dst: &mut [Word], source: &[Word]) {
 }
 
 #[inline]
-pub(crate) fn read_bool(source: &[Word]) -> bool {
-    word_to_bool(source[0])
-}
-
-#[inline]
-pub(crate) fn assign_word(dst: &mut [Word], value: Word) {
-    // assign the lsb
-    dst[0] = value;
-
-    // zero extend
-    for other in dst.iter_mut().skip(1) {
-        *other = 0;
-    }
-}
-
-#[inline]
 pub(crate) fn zero_extend(dst: &mut [Word], source: &[Word]) {
     // copy source to dst
     assign(dst, source);
@@ -393,15 +377,6 @@ pub(crate) fn cmp_greater_equal_signed(a: &[Word], b: &[Word], width: WidthInt) 
         (false, true) => true,  // |a| > -|b|
         (false, false) => cmp_greater_equal(a, b),
         (true, true) => cmp_greater_equal(a, b), // TODO: does this actually work?
-    }
-}
-
-#[inline]
-pub(crate) fn bool_to_word(value: bool) -> Word {
-    if value {
-        1
-    } else {
-        0
     }
 }
 

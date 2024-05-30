@@ -4,43 +4,30 @@
 //
 // Traits for operations on bit-vectors.
 
+use crate::value::owned::value_vec;
 use crate::{BitVecValue, BitVecValueMutRef, BitVecValueRef, WidthInt, Word};
-use smallvec::{smallvec, SmallVec};
 
 /// Declares an arithmetic function which takes in two equal size bitvector and yields a
 /// bitvector of the same size.
 macro_rules! declare_arith_bin_fn {
     ($name:ident) => {
         fn $name<R: BitVecOps>(&self, rhs: &R) -> BitVecValue {
-        debug_assert_eq!(self.width(), rhs.width());
-        debug_assert_eq!(self.words().len(), rhs.words().len());
-        if self.words().len() == 1 {
-            // specialized for 1-word case
-            let mut out = [0; 2];
-            crate::arithmetic::$name(
-                &mut out[0..1],
-                self.words(),
-                rhs.words(),
-                self.width(),
-            );
-            BitVecValue {
-                width: self.width(),
-                words: SmallVec::from_buf(out),
+            debug_assert_eq!(self.width(), rhs.width());
+            debug_assert_eq!(self.words().len(), rhs.words().len());
+            let mut out = value_vec(self.width());
+            if self.words().len() == 1 {
+                // specialized for 1-word case
+                crate::arithmetic::$name(
+                    &mut out[0..1],
+                    &self.words()[0..1],
+                    &rhs.words()[0..1],
+                    self.width(),
+                );
+            } else {
+                crate::arithmetic::$name(&mut out, self.words(), rhs.words(), self.width());
             }
-        } else {
-            let mut out = smallvec![0; self.words().len()];
-            crate::arithmetic::$name(
-                out.as_mut(),
-                self.words(),
-                rhs.words(),
-                self.width(),
-            );
-            BitVecValue {
-                width: self.width(),
-                words: out,
-            }
+            BitVecValue::new(self.width(), out)
         }
-    }
     };
 }
 
@@ -49,33 +36,17 @@ macro_rules! declare_arith_bin_fn {
 macro_rules! declare_bit_arith_bin_fn {
     ($name:ident) => {
         fn $name<R: BitVecOps>(&self, rhs: &R) -> BitVecValue {
-        debug_assert_eq!(self.width(), rhs.width());
-        debug_assert_eq!(self.words().len(), rhs.words().len());
-        if self.words().len() == 1 {
-            // specialized for 1-word case
-            let mut out = [0; 2];
-            crate::arithmetic::$name(
-                &mut out[0..1],
-                self.words(),
-                rhs.words(),
-            );
-            BitVecValue {
-                width: self.width(),
-                words: SmallVec::from_buf(out),
+            debug_assert_eq!(self.width(), rhs.width());
+            debug_assert_eq!(self.words().len(), rhs.words().len());
+            let mut out = value_vec(self.width());
+            if self.words().len() == 1 {
+                // specialized for 1-word case
+                crate::arithmetic::$name(&mut out[0..1], &self.words()[0..1], &rhs.words()[0..1]);
+            } else {
+                crate::arithmetic::$name(&mut out, self.words(), rhs.words());
             }
-        } else {
-            let mut out = smallvec![0; self.words().len()];
-            crate::arithmetic::$name(
-                out.as_mut(),
-                self.words(),
-                rhs.words(),
-            );
-            BitVecValue {
-                width: self.width(),
-                words: out,
-            }
+            BitVecValue::new(self.width(), out)
         }
-    }
     };
 }
 
@@ -167,6 +138,7 @@ pub trait BitVecOps {
     declare_arith_bin_fn!(shift_left);
     declare_arith_bin_fn!(shift_right);
     declare_arith_bin_fn!(arithmetic_shift_right);
+    declare_arith_bin_fn!(mul);
     declare_bit_arith_bin_fn!(and);
     declare_bit_arith_bin_fn!(or);
     declare_bit_arith_bin_fn!(xor);
@@ -191,7 +163,7 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater(self.words(), rhs.words())
+            crate::arithmetic::cmp_greater(&self.words()[0..1], &rhs.words()[0..1])
         } else {
             crate::arithmetic::cmp_greater(self.words(), rhs.words())
         }
@@ -202,7 +174,7 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_equal(self.words(), rhs.words())
+            crate::arithmetic::cmp_greater_equal(&self.words()[0..1], &rhs.words()[0..1])
         } else {
             crate::arithmetic::cmp_greater(self.words(), rhs.words())
         }
@@ -223,7 +195,11 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_signed(self.words(), rhs.words(), self.width())
+            crate::arithmetic::cmp_greater_signed(
+                &self.words()[0..1],
+                &rhs.words()[0..1],
+                self.width(),
+            )
         } else {
             crate::arithmetic::cmp_greater_signed(self.words(), rhs.words(), self.width())
         }
@@ -234,7 +210,11 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_equal_signed(self.words(), rhs.words(), self.width())
+            crate::arithmetic::cmp_greater_equal_signed(
+                &self.words()[0..1],
+                &rhs.words()[0..1],
+                self.width(),
+            )
         } else {
             crate::arithmetic::cmp_greater_equal_signed(self.words(), rhs.words(), self.width())
         }
@@ -254,23 +234,82 @@ pub trait BitVecOps {
         debug_assert!(msb <= self.width());
         debug_assert!(msb >= lsb);
         let out_width = msb - lsb + 1;
-        let out_words = out_width.div_ceil(Word::BITS);
-        if out_words == 1 {
+        let mut out = value_vec(out_width);
+        if out_width <= Word::BITS {
             // specialized for 1-word case
-            let mut out = [0; 2];
             crate::arithmetic::slice(&mut out[0..1], self.words(), msb, lsb);
-            BitVecValue {
-                width: out_width,
-                words: SmallVec::from_buf(out),
-            }
         } else {
-            let mut out = smallvec![0; out_words as usize];
-            crate::arithmetic::slice(out.as_mut(), self.words(), msb, lsb);
-            BitVecValue {
-                width: out_width,
-                words: out,
-            }
+            crate::arithmetic::slice(&mut out, self.words(), msb, lsb);
         }
+        BitVecValue::new(out_width, out)
+    }
+
+    fn sign_extend(&self, by: WidthInt) -> BitVecValue {
+        let out_width = self.width() + by;
+        let mut out = value_vec(out_width);
+        if out_width <= Word::BITS {
+            // specialized for 1-word case
+            crate::arithmetic::sign_extend(
+                &mut out[0..1],
+                &self.words()[0..1],
+                self.width(),
+                out_width,
+            );
+        } else {
+            crate::arithmetic::sign_extend(&mut out, self.words(), self.width(), out_width);
+        }
+        BitVecValue::new(out_width, out)
+    }
+
+    fn zero_extend(&self, by: WidthInt) -> BitVecValue {
+        let out_width = self.width() + by;
+        let mut out = value_vec(out_width);
+        if out_width <= Word::BITS {
+            // specialized for 1-word case
+            crate::arithmetic::zero_extend(&mut out[0..1], &self.words()[0..1]);
+        } else {
+            crate::arithmetic::zero_extend(&mut out, self.words());
+        }
+        BitVecValue::new(out_width, out)
+    }
+
+    fn not(&self) -> BitVecValue {
+        let mut out = value_vec(self.width());
+        if self.words().len() <= 1 {
+            // specialized for 1-word case
+            crate::arithmetic::not(&mut out[0..1], &self.words()[0..1], self.width());
+        } else {
+            crate::arithmetic::not(&mut out, self.words(), self.width());
+        }
+        BitVecValue::new(self.width(), out)
+    }
+
+    fn negate(&self) -> BitVecValue {
+        let mut out = value_vec(self.width());
+        if self.words().len() <= 1 {
+            // specialized for 1-word case
+            crate::arithmetic::negate(&mut out[0..1], &self.words()[0..1], self.width());
+        } else {
+            crate::arithmetic::negate(&mut out, self.words(), self.width());
+        }
+        BitVecValue::new(self.width(), out)
+    }
+
+    fn concat<R: BitVecOps + ?Sized>(&self, rhs: &R) -> BitVecValue {
+        let out_width = self.width() + rhs.width();
+        let mut out = value_vec(out_width);
+        if out_width <= Word::BITS {
+            // specialized for 1-word case
+            crate::arithmetic::concat(
+                &mut out[0..1],
+                &self.words()[0..1],
+                &rhs.words()[0..1],
+                rhs.width(),
+            );
+        } else {
+            crate::arithmetic::concat(&mut out, self.words(), rhs.words(), rhs.width());
+        }
+        BitVecValue::new(out_width, out)
     }
 }
 
