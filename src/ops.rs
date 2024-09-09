@@ -5,7 +5,7 @@
 // Traits for operations on bit-vectors.
 
 use crate::value::owned::value_vec;
-use crate::{BitVecValue, BitVecValueMutRef, BitVecValueRef, WidthInt, Word};
+use crate::{ArrayValueRef, BitVecValue, BitVecValueMutRef, BitVecValueRef, WidthInt, Word};
 
 /// Declares an arithmetic function which takes in two equal size bitvector and yields a
 /// bitvector of the same size.
@@ -376,6 +376,13 @@ pub trait ArrayMutOps: ArrayOps {
         let mut element =
             BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end]);
         element.assign(data);
+    }
+    fn assign<'a>(&mut self, value: impl Into<ArrayValueRef<'a>>) {
+        let value = value.into();
+        debug_assert_eq!(self.index_width(), value.index_width());
+        debug_assert_eq!(self.data_width(), value.data_width());
+        debug_assert_eq!(self.words_mut().len(), value.words().len());
+        self.words_mut().copy_from_slice(value.words());
     }
 }
 

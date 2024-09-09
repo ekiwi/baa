@@ -5,12 +5,13 @@
 // Access a slice of `Word` as a bit-vector.
 
 use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
-use crate::{BitVecOps, WidthInt, Word};
+use crate::{ArrayValueMutRef, ArrayValueRef, BitVecOps, WidthInt, Word};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
 type WordIndex = u32;
 
+/// Index of a bit-vector value in a shared value store.
 #[derive(Debug, Copy, Clone)]
 pub struct BitVecValueIndex {
     width: WidthInt,
@@ -34,19 +35,22 @@ impl BitVecValueIndex {
         let end = start + self.words();
         start..end
     }
+
+    #[inline]
+    pub fn to_array_index(&self, index_width: WidthInt) -> ArrayValueIndex {
+        ArrayValueIndex {
+            first: self.clone(),
+            index_width,
+        }
+    }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct ArrayValueIndex {
-    first: BitVecValueIndex,
-    index_width: WidthInt,
-}
-
-pub trait GetBitVecRef<I, O> {
+/// Implemented by a value stores to convert indices into value references.
+pub trait IndexToRef<I, O> {
     fn get_ref(self, index: I) -> O;
 }
 
-impl<'a, I> GetBitVecRef<I, BitVecValueRef<'a>> for &'a [Word]
+impl<'a, I> IndexToRef<I, BitVecValueRef<'a>> for &'a [Word]
 where
     I: Borrow<BitVecValueIndex>,
 {
@@ -58,7 +62,7 @@ where
     }
 }
 
-impl<'a, I> GetBitVecRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)> for &'a [Word]
+impl<'a, I> IndexToRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)> for &'a [Word]
 where
     I: Borrow<BitVecValueIndex>,
 {
@@ -76,11 +80,12 @@ where
     }
 }
 
-pub trait GetBitVecMutRef<I, O> {
+/// Implemented by value stores to convert indices into mutable value references.
+pub trait IndexToMutRef<I, O> {
     fn get_mut_ref(self, index: I) -> O;
 }
 
-impl<'a, I> GetBitVecMutRef<I, BitVecValueMutRef<'a>> for &'a mut [Word]
+impl<'a, I> IndexToMutRef<I, BitVecValueMutRef<'a>> for &'a mut [Word]
 where
     I: Borrow<BitVecValueIndex>,
 {
@@ -92,8 +97,7 @@ where
     }
 }
 
-impl<'a, I> GetBitVecMutRef<(I, I), (BitVecValueMutRef<'a>, BitVecValueRef<'a>)>
-    for &'a mut [Word]
+impl<'a, I> IndexToMutRef<(I, I), (BitVecValueMutRef<'a>, BitVecValueRef<'a>)> for &'a mut [Word]
 where
     I: Borrow<BitVecValueIndex>,
 {
@@ -114,7 +118,7 @@ where
 }
 
 impl<'a, I>
-    GetBitVecMutRef<
+    IndexToMutRef<
         (I, I, I),
         (
             BitVecValueMutRef<'a>,
@@ -205,6 +209,82 @@ fn split_borrow_2(
     (dst_words, a_words, b_words)
 }
 
+/// Index of an array value in a shared value store.
+#[derive(Debug, Copy, Clone)]
+pub struct ArrayValueIndex {
+    first: BitVecValueIndex,
+    index_width: WidthInt,
+}
+
+impl ArrayValueIndex {
+    #[inline]
+    pub fn num_elements(&self) -> usize {
+        1usize << self.index_width
+    }
+
+    #[inline]
+    pub fn words(&self) -> usize {
+        self.first.words() * self.num_elements()
+    }
+
+    #[inline]
+    pub fn to_range(&self) -> std::ops::Range<usize> {
+        let start = self.first.index as usize;
+        let end = start + self.words();
+        start..end
+    }
+}
+
+impl<'a, I> IndexToRef<I, ArrayValueRef<'a>> for &'a [Word]
+where
+    I: Borrow<ArrayValueIndex>,
+{
+    fn get_ref(self, index: I) -> ArrayValueRef<'a> {
+        ArrayValueRef {
+            index_width: index.borrow().index_width,
+            data_width: index.borrow().first.width,
+            words: &self[index.borrow().to_range()],
+        }
+    }
+}
+
+impl<'a, I> IndexToMutRef<I, ArrayValueMutRef<'a>> for &'a mut [Word]
+where
+    I: Borrow<ArrayValueIndex>,
+{
+    fn get_mut_ref(self, index: I) -> ArrayValueMutRef<'a> {
+        ArrayValueMutRef {
+            index_width: index.borrow().index_width,
+            data_width: index.borrow().first.width,
+            words: &mut self[index.borrow().to_range()],
+        }
+    }
+}
+
+impl<'a, I1, I2> IndexToMutRef<(I1, I2), (ArrayValueMutRef<'a>, ArrayValueRef<'a>)>
+    for &'a mut [Word]
+where
+    I1: Borrow<ArrayValueIndex>,
+    I2: Borrow<ArrayValueIndex>,
+{
+    fn get_mut_ref(self, (a, b): (I1, I2)) -> (ArrayValueMutRef<'a>, ArrayValueRef<'a>) {
+        let (a_words, b_words) = split_borrow_1(self, a.borrow().to_range(), b.borrow().to_range());
+
+        (
+            ArrayValueMutRef {
+                index_width: a.borrow().index_width,
+                data_width: a.borrow().first.width,
+                words: a_words,
+            },
+            ArrayValueRef {
+                index_width: b.borrow().index_width,
+                data_width: b.borrow().first.width,
+                words: b_words,
+            },
+        )
+    }
+}
+
 /// Ensures that each bit vector value gets a unique index. And each combination of value and
 /// width will get a unique BitVecValueIndex
 pub struct BitVecValueInterner {
@@ -268,7 +348,7 @@ impl BitVecValueInterner {
     }
 }
 
-impl<'a, I> GetBitVecRef<I, BitVecValueRef<'a>> for &'a BitVecValueInterner
+impl<'a, I> IndexToRef<I, BitVecValueRef<'a>> for &'a BitVecValueInterner
 where
     I: Borrow<BitVecValueIndex>,
 {
@@ -277,8 +357,7 @@ where
     }
 }
 
-impl<'a, I> GetBitVecRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)>
-    for &'a BitVecValueInterner
+impl<'a, I> IndexToRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)> for &'a BitVecValueInterner
 where
     I: Borrow<BitVecValueIndex>,
 {
@@ -290,7 +369,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BitVecMutOps, BitVecValue};
+    use crate::{ArrayMutOps, BitVecMutOps, BitVecValue};
 
     #[test]
     fn type_size() {
@@ -300,14 +379,71 @@ mod tests {
     }
 
     #[test]
-    fn test_array_access() {
+    fn test_bv_index() {
+        let mut backend = [0; 16];
+        let a = BitVecValueIndex::new(0, 8);
+        let b = BitVecValueIndex::new(1, 8);
         {
-            let mut backend = [0; 16];
-            let (mut a, _b) =
-                backend.get_mut_ref((BitVecValueIndex::new(0, 8), BitVecValueIndex::new(1, 8)));
+            let mut a = backend.get_mut_ref(a);
             a.assign(&BitVecValue::from_u64(1234, 8));
-            assert_eq!(backend[0], 1234);
         }
+        assert_eq!(backend[0], 1234);
+        backend[1] = 111;
+        {
+            let (mut a, b) = backend.get_mut_ref((a, b));
+            a.assign(b);
+        }
+        assert_eq!(backend[0], 111);
+    }
+
+    #[test]
+    fn test_array_index() {
+        let mut backend = [0; 32];
+
+        // a four element array with 2-word entries
+        let a0 = BitVecValueIndex::new(1, 65);
+        let a = a0.to_array_index(2);
+        assert_eq!(a.num_elements(), 4);
+        assert_eq!(a.words(), 8);
+        assert_eq!(a.to_range(), 1..9);
+
+        // another array of the same size
+        let b = BitVecValueIndex::new(9, 65).to_array_index(2);
+
+        // set some elements
+        {
+            let mut a = backend.get_mut_ref(a);
+            a.store(
+                &BitVecValue::from_u64(1, 2),
+                &BitVecValue::from_u64(1234, 65),
+            );
+            a.store(
+                &BitVecValue::from_u64(3, 2),
+                &BitVecValue::from_u64(555555, 65),
+            );
+        }
+        assert_eq!(backend[2 + 1], 1234);
+        assert_eq!(backend[3 + 1], 0);
+        assert_eq!(backend[6 + 1], 555555);
+        assert_eq!(backend[7 + 1], 0);
+
+        // check b array storage and initialize to magic value
+        for ii in 9..(9 + 2 * 4) {
+            assert_eq!(backend[ii], 0);
+            backend[ii] = 99999;
+        }
+
+        // assign b := a
+        {
+            let (mut b, a) = backend.get_mut_ref((b, a));
+            b.assign(a);
+        }
+
+        // check new b values
+        assert_eq!(backend[2 + 9], 1234);
+        assert_eq!(backend[3 + 9], 0);
+        assert_eq!(backend[6 + 9], 555555);
+        assert_eq!(backend[7 + 9], 0);
     }
 
     #[test]
