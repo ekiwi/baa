@@ -11,7 +11,7 @@ use std::cmp::Ordering;
 type DoubleWord = u128;
 
 #[inline]
-pub(crate) fn mask(bits: WidthInt) -> Word {
+pub fn mask(bits: WidthInt) -> Word {
     if bits == Word::BITS || bits == 0 {
         Word::MAX
     } else {
@@ -76,6 +76,7 @@ pub(crate) fn sign_extend(
 
 #[inline]
 pub(crate) fn mask_msb(dst: &mut [Word], width: WidthInt) {
+    debug_assert_eq!(width.div_ceil(Word::BITS) as usize, dst.len());
     let m = mask(width % Word::BITS);
     *dst.last_mut().unwrap() &= m;
 }

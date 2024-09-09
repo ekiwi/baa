@@ -16,7 +16,9 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {}
 
+pub use arithmetic::mask;
 pub use ops::{ArrayMutOps, ArrayOps, BitVecMutOps, BitVecOps, DENSE_ARRAY_MAX_INDEX_WIDTH};
-pub use value::borrowed::{BitVecValueMutRef, BitVecValueRef};
+pub use value::borrowed::{ArrayValueMutRef, ArrayValueRef, BitVecValueMutRef, BitVecValueRef};
+pub use value::container::ValueRef;
 pub use value::indexed::{BitVecValueIndex, GetBitVecMutRef, GetBitVecRef};
 pub use value::owned::{ArrayValue, BitVecValue};

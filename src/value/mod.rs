@@ -3,5 +3,6 @@
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 
 pub(crate) mod borrowed;
+pub(crate) mod container;
 pub(crate) mod indexed;
 pub(crate) mod owned;

@@ -27,12 +27,18 @@ impl BitVecValue {
         }
     }
 
-    pub fn from_u64(value: u64, bits: WidthInt) -> Self {
-        debug_assert_eq!(Word::BITS, 64);
-        Self {
-            width: bits as WidthInt,
-            words: smallvec![value],
+    pub fn from_u64(value: u64, width: WidthInt) -> Self {
+        debug_assert_eq!(Word::BITS, u64::BITS);
+        let num_words = width.div_ceil(Word::BITS) as usize;
+        debug_assert!(num_words >= 1);
+        let mut words = SmallVec::with_capacity(num_words);
+        words.push(value);
+        for _ in 1..num_words {
+            words.push(0);
         }
+        // add zeros if necessary
+
+        Self { width, words }
     }
 
     pub fn from_bool(value: bool) -> Self {
@@ -50,7 +56,8 @@ impl BitVecValue {
     }
 
     pub fn zero(width: WidthInt) -> Self {
-        let words = smallvec![0; width.div_ceil(WidthInt::BITS) as usize];
+        let num_words = width.div_ceil(Word::BITS) as usize;
+        let words = smallvec![0; num_words];
         Self { width, words }
     }
 

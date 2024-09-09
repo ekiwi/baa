@@ -6,6 +6,7 @@
 
 use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
 use crate::{BitVecOps, WidthInt, Word};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 
 type WordIndex = u32;
@@ -35,12 +36,6 @@ impl BitVecValueIndex {
     }
 }
 
-impl AsRef<BitVecValueIndex> for BitVecValueIndex {
-    fn as_ref(&self) -> &BitVecValueIndex {
-        self
-    }
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct ArrayValueIndex {
     first: BitVecValueIndex,
@@ -53,29 +48,29 @@ pub trait GetBitVecRef<I, O> {
 
 impl<'a, I> GetBitVecRef<I, BitVecValueRef<'a>> for &'a [Word]
 where
-    I: AsRef<BitVecValueIndex>,
+    I: Borrow<BitVecValueIndex>,
 {
     fn get_ref(self, index: I) -> BitVecValueRef<'a> {
         BitVecValueRef {
-            width: index.as_ref().width,
-            words: &self[index.as_ref().to_range()],
+            width: index.borrow().width,
+            words: &self[index.borrow().to_range()],
         }
     }
 }
 
 impl<'a, I> GetBitVecRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)> for &'a [Word]
 where
-    I: AsRef<BitVecValueIndex>,
+    I: Borrow<BitVecValueIndex>,
 {
     fn get_ref(self, (a, b): (I, I)) -> (BitVecValueRef<'a>, BitVecValueRef<'a>) {
         (
             BitVecValueRef {
-                width: a.as_ref().width,
-                words: &self[a.as_ref().to_range()],
+                width: a.borrow().width,
+                words: &self[a.borrow().to_range()],
             },
             BitVecValueRef {
-                width: b.as_ref().width,
-                words: &self[b.as_ref().to_range()],
+                width: b.borrow().width,
+                words: &self[b.borrow().to_range()],
             },
         )
     }
@@ -87,12 +82,12 @@ pub trait GetBitVecMutRef<I, O> {
 
 impl<'a, I> GetBitVecMutRef<I, BitVecValueMutRef<'a>> for &'a mut [Word]
 where
-    I: AsRef<BitVecValueIndex>,
+    I: Borrow<BitVecValueIndex>,
 {
     fn get_mut_ref(self, index: I) -> BitVecValueMutRef<'a> {
         BitVecValueMutRef {
-            width: index.as_ref().width,
-            words: &mut self[index.as_ref().to_range()],
+            width: index.borrow().width,
+            words: &mut self[index.borrow().to_range()],
         }
     }
 }
@@ -100,18 +95,18 @@ where
 impl<'a, I> GetBitVecMutRef<(I, I), (BitVecValueMutRef<'a>, BitVecValueRef<'a>)>
     for &'a mut [Word]
 where
-    I: AsRef<BitVecValueIndex>,
+    I: Borrow<BitVecValueIndex>,
 {
     fn get_mut_ref(self, (a, b): (I, I)) -> (BitVecValueMutRef<'a>, BitVecValueRef<'a>) {
-        let (a_words, b_words) = split_borrow_1(self, a.as_ref().to_range(), b.as_ref().to_range());
+        let (a_words, b_words) = split_borrow_1(self, a.borrow().to_range(), b.borrow().to_range());
 
         (
             BitVecValueMutRef {
-                width: a.as_ref().width,
+                width: a.borrow().width,
                 words: a_words,
             },
             BitVecValueRef {
-                width: b.as_ref().width,
+                width: b.borrow().width,
                 words: b_words,
             },
         )
@@ -128,7 +123,7 @@ impl<'a, I>
         ),
     > for &'a mut [Word]
 where
-    I: AsRef<BitVecValueIndex>,
+    I: Borrow<BitVecValueIndex>,
 {
     fn get_mut_ref(
         self,
@@ -140,22 +135,22 @@ where
     ) {
         let (a_words, b_words, c_words) = split_borrow_2(
             self,
-            a.as_ref().to_range(),
-            b.as_ref().to_range(),
-            c.as_ref().to_range(),
+            a.borrow().to_range(),
+            b.borrow().to_range(),
+            c.borrow().to_range(),
         );
 
         (
             BitVecValueMutRef {
-                width: a.as_ref().width,
+                width: a.borrow().width,
                 words: a_words,
             },
             BitVecValueRef {
-                width: b.as_ref().width,
+                width: b.borrow().width,
                 words: b_words,
             },
             BitVecValueRef {
-                width: c.as_ref().width,
+                width: c.borrow().width,
                 words: c_words,
             },
         )
@@ -237,12 +232,12 @@ impl BitVecValueInterner {
         }
     }
 
-    pub fn is_zero<I: AsRef<BitVecValueIndex>>(index: I) -> bool {
-        index.as_ref().index == 0
+    pub fn is_zero<I: Borrow<BitVecValueIndex>>(index: I) -> bool {
+        index.borrow().index == 0
     }
 
-    pub fn is_one<I: AsRef<BitVecValueIndex>>(index: I) -> bool {
-        index.as_ref().index == 1
+    pub fn is_one<I: Borrow<BitVecValueIndex>>(index: I) -> bool {
+        index.borrow().index == 1
     }
 
     pub fn get_index<I: BitVecOps>(&mut self, value: I) -> BitVecValueIndex {
@@ -275,7 +270,7 @@ impl BitVecValueInterner {
 
 impl<'a, I> GetBitVecRef<I, BitVecValueRef<'a>> for &'a BitVecValueInterner
 where
-    I: AsRef<BitVecValueIndex>,
+    I: Borrow<BitVecValueIndex>,
 {
     fn get_ref(self, index: I) -> BitVecValueRef<'a> {
         (&self.words).get_ref(index)
@@ -285,7 +280,7 @@ where
 impl<'a, I> GetBitVecRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)>
     for &'a BitVecValueInterner
 where
-    I: AsRef<BitVecValueIndex>,
+    I: Borrow<BitVecValueIndex>,
 {
     fn get_ref(self, index: (I, I)) -> (BitVecValueRef<'a>, BitVecValueRef<'a>) {
         (&self.words).get_ref(index)
@@ -310,7 +305,7 @@ mod tests {
             let mut backend = [0; 16];
             let (mut a, _b) =
                 backend.get_mut_ref((BitVecValueIndex::new(0, 8), BitVecValueIndex::new(1, 8)));
-            a.assign(BitVecValue::from_u64(1234, 8));
+            a.assign(&BitVecValue::from_u64(1234, 8));
             assert_eq!(backend[0], 1234);
         }
     }

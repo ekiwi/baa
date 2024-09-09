@@ -95,17 +95,13 @@ pub trait BitVecOps {
 
     /// Returns the value as a 64-bit unsigned integer iff the width is 64-bit or less.
     fn to_u64(&self) -> Option<u64> {
-        // TODO: allow conversion of bit-vectors over 64 bits if the value can fit into 64 bits
-        if self.width() <= 64 {
-            if self.width() == 0 {
-                Some(0)
-            } else {
-                debug_assert_eq!(Word::BITS, 64);
-                debug_assert_eq!(self.words().len(), 0);
-                Some(self.words()[0])
-            }
-        } else {
+        debug_assert_eq!(Word::BITS, u64::BITS);
+        // check msbs
+        let non_zero_msb = self.words().iter().skip(1).any(|w| *w != 0);
+        if non_zero_msb {
             None
+        } else {
+            Some(self.words().iter().next().map(|w| *w).unwrap_or(0))
         }
     }
 
@@ -317,10 +313,24 @@ pub trait BitVecOps {
 pub trait BitVecMutOps: BitVecOps {
     fn words_mut(&mut self) -> &mut [Word];
 
-    fn assign<V: BitVecOps>(&mut self, value: V) {
+    fn assign<'a>(&mut self, value: impl Into<BitVecValueRef<'a>>) {
+        let value = value.into();
         debug_assert_eq!(self.width(), value.width());
         debug_assert_eq!(self.words_mut().len(), value.words().len());
         self.words_mut().copy_from_slice(value.words());
+    }
+
+    /// ensures that all unused bits in the most significant word are set to zero
+    fn mask_msb(&mut self) {
+        let width = self.width();
+        crate::arithmetic::mask_msb(self.words_mut(), width);
+    }
+
+    /// sets all bits to zero
+    fn assign_zero(&mut self) {
+        self.words_mut().iter_mut().for_each(|w| {
+            *w = 0;
+        });
     }
 }
 
@@ -352,7 +362,12 @@ pub trait ArrayOps {
 /// Operations implemented by mutable array values with a dense representation.
 pub trait ArrayMutOps: ArrayOps {
     fn words_mut(&mut self) -> &mut [Word];
-    fn store<I: BitVecOps, D: BitVecOps>(&mut self, index: I, data: D) {
+    fn store<'a, 'b>(
+        &mut self,
+        index: impl Into<BitVecValueRef<'a>>,
+        data: impl Into<BitVecValueRef<'b>>,
+    ) {
+        let index = index.into();
         debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
         debug_assert_eq!(self.index_width(), index.width());
         debug_assert_eq!(index.words().len(), 1);
@@ -361,5 +376,28 @@ pub trait ArrayMutOps: ArrayOps {
         let mut element =
             BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end]);
         element.assign(data);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn assign_bit_vector() {
+        let mut dst = BitVecValue::zero(123);
+
+        // owned values need to be passed as reference
+        let src = BitVecValue::from_u64(1111111111, 123);
+        dst.assign(&src);
+
+        // bit vec value references are copy, so we can just pass them around as values
+        let src = BitVecValue::from_u64(1111111111 * 2, 123);
+        let src_ref = BitVecValueRef::from(&src);
+        dst.assign(src_ref);
+
+        // make sure src_ref was not moved
+        let value = src_ref.to_u64().unwrap();
+        assert_eq!(value, 1111111111 * 2);
     }
 }
