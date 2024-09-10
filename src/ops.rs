@@ -327,7 +327,7 @@ pub trait BitVecMutOps: BitVecOps {
     }
 
     /// sets all bits to zero
-    fn assign_zero(&mut self) {
+    fn clear(&mut self) {
         self.words_mut().iter_mut().for_each(|w| {
             *w = 0;
         });
@@ -341,10 +341,16 @@ pub trait ArrayOps {
     fn index_width(&self) -> WidthInt;
     fn data_width(&self) -> WidthInt;
     fn words(&self) -> &[Word];
+    #[inline]
     fn words_per_element(&self) -> usize {
         self.data_width().div_ceil(Word::BITS) as usize
     }
-    fn select<I: BitVecOps>(&self, index: I) -> BitVecValueRef {
+    #[inline]
+    fn num_elements(&self) -> usize {
+        1usize << self.index_width()
+    }
+    fn select<'a>(&self, index: impl Into<BitVecValueRef<'a>>) -> BitVecValueRef {
+        let index = index.into();
         debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
         debug_assert_eq!(self.index_width(), index.width());
         debug_assert_eq!(index.words().len(), 1);
@@ -377,12 +383,26 @@ pub trait ArrayMutOps: ArrayOps {
             BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end]);
         element.assign(data);
     }
+    fn select_mut<I: BitVecOps>(&mut self, index: I) -> BitVecValueMutRef {
+        debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
+        debug_assert_eq!(self.index_width(), index.width());
+        debug_assert_eq!(index.words().len(), 1);
+        let start = self.words_per_element() * index.words()[0] as usize;
+        let end = start + self.words_per_element();
+        BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end])
+    }
     fn assign<'a>(&mut self, value: impl Into<ArrayValueRef<'a>>) {
         let value = value.into();
         debug_assert_eq!(self.index_width(), value.index_width());
         debug_assert_eq!(self.data_width(), value.data_width());
         debug_assert_eq!(self.words_mut().len(), value.words().len());
         self.words_mut().copy_from_slice(value.words());
+    }
+    /// sets all bits to zero
+    fn clear(&mut self) {
+        self.words_mut().iter_mut().for_each(|w| {
+            *w = 0;
+        });
     }
 }
 

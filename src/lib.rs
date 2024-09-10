@@ -20,5 +20,5 @@ pub use arithmetic::mask;
 pub use ops::{ArrayMutOps, ArrayOps, BitVecMutOps, BitVecOps, DENSE_ARRAY_MAX_INDEX_WIDTH};
 pub use value::borrowed::{ArrayValueMutRef, ArrayValueRef, BitVecValueMutRef, BitVecValueRef};
 pub use value::container::ValueRef;
-pub use value::indexed::{BitVecValueIndex, IndexToMutRef, IndexToRef};
+pub use value::indexed::{ArrayValueIndex, BitVecValueIndex, IndexToMutRef, IndexToRef};
 pub use value::owned::{ArrayValue, BitVecValue};

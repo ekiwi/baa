@@ -233,6 +233,11 @@ impl ArrayValueIndex {
         let end = start + self.words();
         start..end
     }
+
+    #[inline]
+    pub fn first_element_index(&self) -> BitVecValueIndex {
+        self.first
+    }
 }
 
 impl<'a, I> IndexToRef<I, ArrayValueRef<'a>> for &'a [Word]
@@ -376,6 +381,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<WidthInt>(), 4);
         assert_eq!(std::mem::size_of::<WordIndex>(), 4);
         assert_eq!(std::mem::size_of::<BitVecValueIndex>(), 8);
+        assert_eq!(std::mem::size_of::<ArrayValueIndex>(), 12);
     }
 
     #[test]
