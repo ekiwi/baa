@@ -12,10 +12,6 @@ pub type WidthInt = u32;
 /// Word size for values.
 pub type Word = u64;
 
-use thiserror::Error;
-#[derive(Debug, Error)]
-pub enum Error {}
-
 pub use arithmetic::mask;
 pub use ops::{ArrayMutOps, ArrayOps, BitVecMutOps, BitVecOps, DENSE_ARRAY_MAX_INDEX_WIDTH};
 pub use value::borrowed::{ArrayValueMutRef, ArrayValueRef, BitVecValueMutRef, BitVecValueRef};
