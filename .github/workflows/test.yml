@@ -30,8 +30,10 @@ jobs:
     - uses: actions/checkout@v4
     - name: Build
       run: cargo build --verbose --features ${{ matrix.features }}
-    - name: Run tests
+    - name: Run tests (Debug)
       run: cargo test --verbose --features ${{ matrix.features }}
+    - name: Run tests (Release)
+      run: cargo test --release --verbose --features ${{ matrix.features }}
 
   semver:
     name: Check Semantic Versioning

@@ -391,9 +391,9 @@ mod tests {
         let b = BitVecValueIndex::new(1, 8);
         {
             let mut a = backend.get_mut_ref(a);
-            a.assign(&BitVecValue::from_u64(1234, 8));
+            a.assign(&BitVecValue::from_u64(123, 8));
         }
-        assert_eq!(backend[0], 1234);
+        assert_eq!(backend[0], 123);
         backend[1] = 111;
         {
             let (mut a, b) = backend.get_mut_ref((a, b));

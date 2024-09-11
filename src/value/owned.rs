@@ -28,15 +28,20 @@ impl BitVecValue {
     }
 
     pub fn from_u64(value: u64, width: WidthInt) -> Self {
-        debug_assert_eq!(Word::BITS, u64::BITS);
+        debug_assert_eq!(Word::BITS, u64::BITS, "basic assumption of this function");
         let num_words = width.div_ceil(Word::BITS) as usize;
-        debug_assert!(num_words >= 1);
+        debug_assert!(num_words >= 1, "cannot create a zero bit value!");
         let mut words = SmallVec::with_capacity(num_words);
         words.push(value);
+        // add zeros if necessary
         for _ in 1..num_words {
             words.push(0);
         }
-        // add zeros if necessary
+        crate::arithmetic::mask_msb(&mut words, width);
+        debug_assert_eq!(
+            words[0], value,
+            "value {value} does not fit into {width} bits"
+        );
 
         Self { width, words }
     }
@@ -231,5 +236,23 @@ mod tests {
     fn test_tru_fals() {
         assert!(BitVecValue::tru().to_bool().unwrap());
         assert!(!BitVecValue::fals().to_bool().unwrap());
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic] // debug assertions won't allow oversize values
+    fn test_from_u64_in_debug_mode() {
+        let _ = BitVecValue::from_u64(16, 4);
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn test_from_u64_in_debug_mode() {
+        // in release mode the upper bits just get cleared
+        assert_eq!(
+            BitVecValue::from_u64(16, 4).to_u64().unwrap(),
+            0,
+            "should mask the top bits"
+        );
     }
 }
