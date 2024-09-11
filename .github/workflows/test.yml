@@ -20,9 +20,9 @@ jobs:
         features:
           - default
           - bigint
-          - bitvec1
           - serde1
-          - bigint,bitvec1,serde1
+          - fraction1
+          - bigint,serde1,fraction1
 
     steps:
     - name: Update Rust to ${{ matrix.toolchain }}

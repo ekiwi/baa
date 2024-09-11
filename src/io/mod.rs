@@ -7,8 +7,6 @@
 pub(crate) mod bigint;
 pub(crate) mod strings;
 
-#[cfg(feature = "bitvec1")]
-pub(crate) mod bitvec;
 pub(crate) mod bytes;
 #[cfg(feature = "fraction1")]
 pub(crate) mod fraction;
