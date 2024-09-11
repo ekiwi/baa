@@ -62,11 +62,6 @@ impl BitVecValue {
 
         #[cfg(debug_assertions)]
         if crate::arithmetic::is_neg(&words, width) {
-            debug_assert_eq!(
-                words[0], value as u64,
-                "value {value} does not fit into {width} bits"
-            );
-        } else {
             if width < Word::BITS {
                 let extra_sign_bits = crate::arithmetic::mask(Word::BITS - width) << width;
                 let word_0 = words[0];
@@ -81,6 +76,11 @@ impl BitVecValue {
                     "value {value} does not fit into {width} bits"
                 );
             }
+        } else {
+            debug_assert_eq!(
+                words[0], value as u64,
+                "value {value} does not fit into {width} bits"
+            );
         }
 
         Self { width, words }

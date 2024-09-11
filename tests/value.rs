@@ -12,17 +12,32 @@ fn i64_roundtrip_regression() {
     assert_eq!(BitVecValue::from_i64(-1, 64).to_i64().unwrap(), -1);
 }
 
+#[test]
+#[cfg(feature = "bigint")]
+fn i32_to_ibig_regression() {
+    let input = 0;
+    let val = BitVecValue::from_i64(input as i64, 32);
+    assert_eq!(val.to_big_int(), input.into())
+}
+
 proptest! {
 
     #[test]
     fn i64_roundtrip(value: i64) {
         let bitvec = BitVecValue::from_i64(value, 64);
-        assert_eq!(bitvec.to_i64().unwrap(), value);
+        prop_assert_eq!(bitvec.to_i64().unwrap(), value);
     }
 
     #[test]
     fn u64_roundtrip(value: u64) {
         let bitvec = BitVecValue::from_u64(value, 64);
-        assert_eq!(bitvec.to_u64().unwrap(), value);
+        prop_assert_eq!(bitvec.to_u64().unwrap(), value);
+    }
+
+    #[test]
+    #[cfg(feature = "bigint")]
+    fn i32_to_ibig(input: i32) {
+        let val = BitVecValue::from_i64(input as i64, 32);
+        prop_assert_eq!(val.to_big_int(), input.into())
     }
 }
