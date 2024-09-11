@@ -99,6 +99,12 @@ impl BitVecValue {
     }
 }
 
+impl From<bool> for BitVecValue {
+    fn from(value: bool) -> Self {
+        BitVecValue::from_bool(value)
+    }
+}
+
 /// Owned dense bit-vector array.
 #[derive(Clone)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
