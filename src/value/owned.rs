@@ -1,6 +1,7 @@
 // Copyright 2023-2024 The Regents of the University of California
+// Copyright 2024 Cornell University
 // released under BSD 3-Clause License
-// author: Kevin Laeufer <laeufer@berkeley.edu>
+// author: Kevin Laeufer <laeufer@cornell.edu>
 
 use crate::ops::{ArrayMutOps, ArrayOps};
 use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
@@ -42,6 +43,45 @@ impl BitVecValue {
             words[0], value,
             "value {value} does not fit into {width} bits"
         );
+
+        Self { width, words }
+    }
+
+    pub fn from_i64(value: i64, width: WidthInt) -> Self {
+        debug_assert_eq!(Word::BITS, u64::BITS, "basic assumption of this function");
+        let num_words = width.div_ceil(Word::BITS) as usize;
+        debug_assert!(num_words >= 1, "cannot create a zero bit value!");
+        let words = if num_words == 1 {
+            let masked = value as u64 & crate::arithmetic::mask(width);
+            smallvec![masked]
+        } else {
+            let mut words = smallvec![0; num_words];
+            crate::arithmetic::sign_extend(&mut words, &[value as u64], u64::BITS, width);
+            words
+        };
+
+        #[cfg(debug_assertions)]
+        if crate::arithmetic::is_neg(&words, width) {
+            debug_assert_eq!(
+                words[0], value as u64,
+                "value {value} does not fit into {width} bits"
+            );
+        } else {
+            if width < Word::BITS {
+                let extra_sign_bits = crate::arithmetic::mask(Word::BITS - width) << width;
+                let word_0 = words[0];
+                let word_0_with_bits = word_0 | extra_sign_bits;
+                debug_assert_eq!(
+                    word_0_with_bits, value as u64,
+                    "value {value} does not fit into {width} bits"
+                );
+            } else {
+                debug_assert_eq!(
+                    words[0], value as u64,
+                    "value {value} does not fit into {width} bits"
+                );
+            }
+        }
 
         Self { width, words }
     }
@@ -247,11 +287,31 @@ mod tests {
 
     #[test]
     #[cfg(not(debug_assertions))]
-    fn test_from_u64_in_debug_mode() {
+    fn test_from_u64_in_release_mode() {
         // in release mode the upper bits just get cleared
         assert_eq!(
             BitVecValue::from_u64(16, 4).to_u64().unwrap(),
             0,
+            "should mask the top bits"
+        );
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic] // debug assertions won't allow oversize values
+    fn test_from_i64_in_debug_mode() {
+        let _ = BitVecValue::from_i64(-8, 4); // this should be OK
+        let _ = BitVecValue::from_i64(7, 4); // this should be OK
+        let _ = BitVecValue::from_i64(-9, 4); // this should fail
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn test_from_i64_in_release_mode() {
+        // in release mode the upper bits just get cleared
+        assert_eq!(
+            BitVecValue::from_i64(-9, 4).to_u64().unwrap(),
+            7,
             "should mask the top bits"
         );
     }

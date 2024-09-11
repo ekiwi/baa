@@ -1,6 +1,7 @@
 // Copyright 2023-2024 The Regents of the University of California
+// Copyright 2024 Cornell University
 // released under BSD 3-Clause License
-// author: Kevin Laeufer <laeufer@berkeley.edu>
+// author: Kevin Laeufer <laeufer@cornell.edu>
 //
 // Traits for operations on bit-vectors.
 
@@ -93,7 +94,7 @@ pub trait BitVecOps {
         }
     }
 
-    /// Returns the value as a 64-bit unsigned integer iff the width is 64-bit or less.
+    /// Returns the value as a 64-bit unsigned integer if the value can be represented
     fn to_u64(&self) -> Option<u64> {
         debug_assert_eq!(Word::BITS, u64::BITS);
         // check msbs
@@ -105,23 +106,37 @@ pub trait BitVecOps {
         }
     }
 
-    /// Returns the value as a 64-bit signed integer iff the width is 64-bit or less.
+    /// Returns the value as a 64-bit signed integer if the value can be represented
     fn to_i64(&self) -> Option<i64> {
-        // TODO: allow conversion of bit-vectors over 64 bits if the value can fit into 64 bits
-        if self.width() <= 64 {
+        debug_assert_eq!(Word::BITS, i64::BITS);
+        if self.width() <= i64::BITS {
             if self.width() == 0 {
                 Some(0)
+            } else if self.width() == i64::BITS {
+                Some(self.words()[0] as i64)
             } else {
-                debug_assert_eq!(Word::BITS, 64);
-                debug_assert_eq!(self.words().len(), 0);
+                debug_assert_eq!(self.words().len(), 1);
                 if crate::arithmetic::is_neg(self.words(), self.width()) {
-                    todo!()
+                    let extra_sign_bits =
+                        crate::arithmetic::mask(Word::BITS - self.width()) << self.width();
+                    Some((self.words()[0] | extra_sign_bits) as i64)
                 } else {
                     Some(self.words()[0] as i64)
                 }
             }
         } else {
-            None
+            let all_zero_msbs = self.words().iter().skip(1).all(|w| *w == 0);
+            let word_0 = self.words()[0];
+            let all_max_msbs = self.words().iter().skip(1).all(|w| *w == Word::MAX);
+            match (
+                all_zero_msbs,
+                all_max_msbs,
+                crate::arithmetic::is_neg(&[word_0], Word::BITS),
+            ) {
+                (true, false, false) => Some(word_0 as i64),
+                (false, true, true) => Some(word_0 as i64),
+                _ => None,
+            }
         }
     }
 
