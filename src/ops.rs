@@ -76,12 +76,12 @@ pub trait BitVecOps {
     }
 
     #[cfg(feature = "fraction1")]
-    fn to_signed_fixed_point(&self, fraction_width: WidthInt) -> fraction::Fraction {
+    fn to_signed_fixed_point(&self, fraction_width: WidthInt) -> Option<fraction::Fraction> {
         crate::io::fraction::to_signed_fixed_point(self.words(), self.width(), fraction_width)
     }
 
     #[cfg(feature = "fraction1")]
-    fn to_unsigned_fixed_point(&self, fraction_width: WidthInt) -> fraction::Fraction {
+    fn to_unsigned_fixed_point(&self, fraction_width: WidthInt) -> Option<fraction::Fraction> {
         crate::io::fraction::to_unsigned_fixed_point(self.words(), self.width(), fraction_width)
     }
 
