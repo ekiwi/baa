@@ -84,7 +84,6 @@ pub trait BitVecOps {
                 None
             } else {
                 let negated = self.negate();
-                debug_assert!(!negated.is_negative());
                 let frac = negated.to_unsigned_fixed_point(fraction_width);
                 frac.map(|f| -f)
             }
