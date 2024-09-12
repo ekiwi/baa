@@ -127,17 +127,6 @@ impl BitVecValue {
         Self { width: bits, words }
     }
 
-    #[cfg(feature = "fraction1")]
-    pub fn from_fixed_point(
-        value: &fraction::Fraction,
-        bits: WidthInt,
-        fraction_width: WidthInt,
-    ) -> Self {
-        let mut words = value_vec(bits);
-        crate::io::fraction::from_fixed_point(value, bits, fraction_width, &mut words);
-        Self { width: bits, words }
-    }
-
     /// Raw constructor for internal use.
     pub(crate) fn new(width: WidthInt, words: ValueVec) -> Self {
         Self { width, words }

@@ -5,8 +5,5 @@
 // methods to convert to/from Value
 #[cfg(any(test, feature = "bigint"))]
 pub(crate) mod bigint;
-pub(crate) mod strings;
-
 pub(crate) mod bytes;
-#[cfg(feature = "fraction1")]
-pub(crate) mod fraction;
+pub(crate) mod strings;
