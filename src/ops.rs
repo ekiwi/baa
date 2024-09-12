@@ -77,12 +77,27 @@ pub trait BitVecOps {
 
     #[cfg(feature = "fraction1")]
     fn to_signed_fixed_point(&self, fraction_width: WidthInt) -> Option<fraction::Fraction> {
-        crate::io::fraction::to_signed_fixed_point(self.words(), self.width(), fraction_width)
+        debug_assert!(fraction_width <= self.width());
+        if self.is_negative() {
+            // before we do a costly conversion we make sure that we can actually fit into 64-bits
+            if self.width() > u64::BITS {
+                None
+            } else {
+                let negated = self.negate();
+                debug_assert!(!negated.is_negative());
+                let frac = negated.to_unsigned_fixed_point(fraction_width);
+                frac.map(|f| -f)
+            }
+        } else {
+            self.to_unsigned_fixed_point(fraction_width)
+        }
     }
 
     #[cfg(feature = "fraction1")]
     fn to_unsigned_fixed_point(&self, fraction_width: WidthInt) -> Option<fraction::Fraction> {
-        crate::io::fraction::to_unsigned_fixed_point(self.words(), self.width(), fraction_width)
+        debug_assert!(fraction_width <= self.width());
+        let denom = 1u64 << fraction_width;
+        self.to_u64().map(|v| fraction::Fraction::new(v, denom))
     }
 
     /// Returns value as a bool iff the value is a 1-bit value.
@@ -142,6 +157,10 @@ pub trait BitVecOps {
 
     fn is_zero(&self) -> bool {
         self.words().iter().all(|w| *w == 0)
+    }
+
+    fn is_negative(&self) -> bool {
+        crate::arithmetic::is_neg(self.words(), self.width())
     }
 
     declare_arith_bin_fn!(add);
