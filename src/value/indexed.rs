@@ -353,6 +353,10 @@ impl ValueInterner {
             }
         }
     }
+
+    pub fn words(&self) -> &[Word] {
+        &self.words
+    }
 }
 
 #[cfg(test)]
@@ -479,7 +483,7 @@ mod tests {
         let i1 = intern.get_index(BitVecValue::from_big_int(value, width));
         assert_eq!(i0.index, i1.index);
         assert_eq!(i0.width, i1.width);
-        let v0 = intern.get_ref(i0);
+        let v0 = intern.words().get_ref(i0);
         assert_eq!(BitVecValue::from_big_int(value, width), v0);
     }
 
