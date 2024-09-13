@@ -7,7 +7,6 @@
 use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
 use crate::{ArrayValueMutRef, ArrayValueRef, BitVecOps, WidthInt, Word};
 use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 
 type WordIndex = u32;
@@ -294,9 +293,9 @@ where
 /// Ensures that each bit vector value gets a unique index. And each combination of value and
 /// width will get a unique BitVecValueIndex
 pub struct ValueInterner {
-    words: RefCell<Vec<Word>>,
-    small: RefCell<HashMap<Word, WordIndex>>,
-    large: RefCell<HashMap<Box<[Word]>, WordIndex>>,
+    words: Vec<Word>,
+    small: HashMap<Word, WordIndex>,
+    large: HashMap<Box<[Word]>, WordIndex>,
 }
 
 impl Default for ValueInterner {
@@ -308,9 +307,9 @@ impl Default for ValueInterner {
 impl ValueInterner {
     pub fn new() -> Self {
         // initialize with some important constants
-        let words = RefCell::new(vec![0, 1, 2, 3, 4, 5, 6, 7]);
-        let small = RefCell::new(HashMap::new());
-        let large = RefCell::new(HashMap::new());
+        let words = vec![0, 1, 2, 3, 4, 5, 6, 7];
+        let small = HashMap::new();
+        let large = HashMap::new();
         Self {
             words,
             small,
@@ -326,34 +325,30 @@ impl ValueInterner {
         index.borrow().index == 1
     }
 
-    pub fn get_index<I: BitVecOps>(&self, value: I) -> BitVecValueIndex {
+    pub fn get_index<I: BitVecOps>(&mut self, value: I) -> BitVecValueIndex {
         let (words, width) = (value.words(), value.width());
         if let &[word] = words {
             debug_assert!(width <= Word::BITS);
             if word < 8 {
                 BitVecValueIndex::new(word as WordIndex, width)
             } else {
-                let mut small = self.small.borrow_mut();
-                if let Some(index) = small.get(&word) {
+                if let Some(index) = self.small.get(&word) {
                     BitVecValueIndex::new(*index, width)
                 } else {
-                    let mut self_words = self.words.borrow_mut();
-                    let index = self_words.len() as WordIndex;
-                    self_words.push(word);
-                    small.insert(word, index);
+                    let index = self.words.len() as WordIndex;
+                    self.words.push(word);
+                    self.small.insert(word, index);
                     BitVecValueIndex::new(index, width)
                 }
             }
         } else {
             debug_assert!(width > Word::BITS);
-            let mut large = self.large.borrow_mut();
-            if let Some(index) = large.get(words) {
+            if let Some(index) = self.large.get(words) {
                 BitVecValueIndex::new(*index, width)
             } else {
-                let mut self_words = self.words.borrow_mut();
-                let index = self_words.len() as WordIndex;
-                self_words.extend_from_slice(words);
-                large.insert(Box::from(words), index);
+                let index = self.words.len() as WordIndex;
+                self.words.extend_from_slice(words);
+                self.large.insert(Box::from(words), index);
                 BitVecValueIndex::new(index, width)
             }
         }
@@ -459,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_interner() {
-        let i = ValueInterner::new();
+        let mut i = ValueInterner::new();
         assert_eq!(i.get_index(BitVecValue::tru()).index, 1);
         assert_eq!(i.get_index(BitVecValue::fals()).index, 0);
         assert_eq!(i.get_index(BitVecValue::from_u64(0, 4)).index, 0);
