@@ -7,6 +7,7 @@
 use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
 use crate::{ArrayValueMutRef, ArrayValueRef, BitVecOps, WidthInt, Word};
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 type WordIndex = u32;
@@ -292,24 +293,24 @@ where
 
 /// Ensures that each bit vector value gets a unique index. And each combination of value and
 /// width will get a unique BitVecValueIndex
-pub struct BitVecValueInterner {
-    words: Vec<Word>,
-    small: HashMap<Word, WordIndex>,
-    large: HashMap<Box<[Word]>, WordIndex>,
+pub struct ValueInterner {
+    words: RefCell<Vec<Word>>,
+    small: RefCell<HashMap<Word, WordIndex>>,
+    large: RefCell<HashMap<Box<[Word]>, WordIndex>>,
 }
 
-impl Default for BitVecValueInterner {
+impl Default for ValueInterner {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl BitVecValueInterner {
+impl ValueInterner {
     pub fn new() -> Self {
         // initialize with some important constants
-        let words = vec![0, 1, 2, 3, 4, 5, 6, 7];
-        let small = HashMap::new();
-        let large = HashMap::new();
+        let words = RefCell::new(vec![0, 1, 2, 3, 4, 5, 6, 7]);
+        let small = RefCell::new(HashMap::new());
+        let large = RefCell::new(HashMap::new());
         Self {
             words,
             small,
@@ -325,49 +326,37 @@ impl BitVecValueInterner {
         index.borrow().index == 1
     }
 
-    pub fn get_index<I: BitVecOps>(&mut self, value: I) -> BitVecValueIndex {
+    pub fn get_index<I: BitVecOps>(&self, value: I) -> BitVecValueIndex {
         let (words, width) = (value.words(), value.width());
         if let &[word] = words {
             debug_assert!(width <= Word::BITS);
             if word < 8 {
                 BitVecValueIndex::new(word as WordIndex, width)
-            } else if let Some(index) = self.small.get(&word) {
-                BitVecValueIndex::new(*index, width)
             } else {
-                let index = self.words.len() as WordIndex;
-                self.words.push(word);
-                self.small.insert(word, index);
-                BitVecValueIndex::new(index, width)
+                let mut small = self.small.borrow_mut();
+                if let Some(index) = small.get(&word) {
+                    BitVecValueIndex::new(*index, width)
+                } else {
+                    let mut self_words = self.words.borrow_mut();
+                    let index = self_words.len() as WordIndex;
+                    self_words.push(word);
+                    small.insert(word, index);
+                    BitVecValueIndex::new(index, width)
+                }
             }
         } else {
             debug_assert!(width > Word::BITS);
-            if let Some(index) = self.large.get(words) {
+            let mut large = self.large.borrow_mut();
+            if let Some(index) = large.get(words) {
                 BitVecValueIndex::new(*index, width)
             } else {
-                let index = self.words.len() as WordIndex;
-                self.words.extend_from_slice(words);
-                self.large.insert(Box::from(words), index);
+                let mut self_words = self.words.borrow_mut();
+                let index = self_words.len() as WordIndex;
+                self_words.extend_from_slice(words);
+                large.insert(Box::from(words), index);
                 BitVecValueIndex::new(index, width)
             }
         }
-    }
-}
-
-impl<'a, I> IndexToRef<I, BitVecValueRef<'a>> for &'a BitVecValueInterner
-where
-    I: Borrow<BitVecValueIndex>,
-{
-    fn get_ref(self, index: I) -> BitVecValueRef<'a> {
-        (&self.words).get_ref(index)
-    }
-}
-
-impl<'a, I> IndexToRef<(I, I), (BitVecValueRef<'a>, BitVecValueRef<'a>)> for &'a BitVecValueInterner
-where
-    I: Borrow<BitVecValueIndex>,
-{
-    fn get_ref(self, index: (I, I)) -> (BitVecValueRef<'a>, BitVecValueRef<'a>) {
-        (&self.words).get_ref(index)
     }
 }
 
@@ -470,17 +459,17 @@ mod tests {
 
     #[test]
     fn test_interner() {
-        let mut i = BitVecValueInterner::new();
+        let i = ValueInterner::new();
         assert_eq!(i.get_index(BitVecValue::tru()).index, 1);
         assert_eq!(i.get_index(BitVecValue::fals()).index, 0);
         assert_eq!(i.get_index(BitVecValue::from_u64(0, 4)).index, 0);
-        assert!(BitVecValueInterner::is_zero(
+        assert!(ValueInterner::is_zero(
             i.get_index(BitVecValue::from_u64(0, 4))
         ));
-        assert!(!BitVecValueInterner::is_one(
+        assert!(!ValueInterner::is_one(
             i.get_index(BitVecValue::from_u64(0, 4))
         ));
-        assert!(BitVecValueInterner::is_one(
+        assert!(ValueInterner::is_one(
             i.get_index(BitVecValue::from_u64(1, 4))
         ));
     }
@@ -490,7 +479,7 @@ mod tests {
 
     #[cfg(feature = "bigint")]
     fn interner_should_return_same_value(value: &BigInt, width: WidthInt) {
-        let mut intern = BitVecValueInterner::new();
+        let mut intern = ValueInterner::new();
         let i0 = intern.get_index(BitVecValue::from_big_int(value, width));
         let i1 = intern.get_index(BitVecValue::from_big_int(value, width));
         assert_eq!(i0.index, i1.index);
