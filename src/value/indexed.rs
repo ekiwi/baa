@@ -8,6 +8,7 @@ use super::borrowed::{BitVecValueMutRef, BitVecValueRef};
 use crate::{ArrayValueMutRef, ArrayValueRef, BitVecOps, WidthInt, Word};
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 
 type WordIndex = u32;
 
@@ -292,6 +293,7 @@ where
 
 /// Ensures that each bit vector value gets a unique index. And each combination of value and
 /// width will get a unique BitVecValueIndex
+#[derive(Clone)]
 pub struct ValueInterner {
     words: Vec<Word>,
     small: HashMap<Word, WordIndex>,
@@ -301,6 +303,17 @@ pub struct ValueInterner {
 impl Default for ValueInterner {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Debug for ValueInterner {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ValueInterner({} small, {} large)",
+            self.small.len(),
+            self.large.len()
+        )
     }
 }
 
