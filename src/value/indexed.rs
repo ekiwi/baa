@@ -338,7 +338,8 @@ impl ValueInterner {
         index.borrow().index == 1
     }
 
-    pub fn get_index<I: BitVecOps>(&mut self, value: I) -> BitVecValueIndex {
+    pub fn get_index<'a>(&mut self, value: impl Into<BitVecValueRef<'a>>) -> BitVecValueIndex {
+        let value = value.into();
         let (words, width) = (value.words(), value.width());
         if let &[word] = words {
             debug_assert!(width <= Word::BITS);
@@ -472,17 +473,17 @@ mod tests {
     #[test]
     fn test_interner() {
         let mut i = ValueInterner::new();
-        assert_eq!(i.get_index(BitVecValue::tru()).index, 1);
-        assert_eq!(i.get_index(BitVecValue::fals()).index, 0);
-        assert_eq!(i.get_index(BitVecValue::from_u64(0, 4)).index, 0);
+        assert_eq!(i.get_index(&BitVecValue::tru()).index, 1);
+        assert_eq!(i.get_index(&BitVecValue::fals()).index, 0);
+        assert_eq!(i.get_index(&BitVecValue::from_u64(0, 4)).index, 0);
         assert!(ValueInterner::is_zero(
-            i.get_index(BitVecValue::from_u64(0, 4))
+            i.get_index(&BitVecValue::from_u64(0, 4))
         ));
         assert!(!ValueInterner::is_one(
-            i.get_index(BitVecValue::from_u64(0, 4))
+            i.get_index(&BitVecValue::from_u64(0, 4))
         ));
         assert!(ValueInterner::is_one(
-            i.get_index(BitVecValue::from_u64(1, 4))
+            i.get_index(&BitVecValue::from_u64(1, 4))
         ));
     }
 
@@ -492,8 +493,8 @@ mod tests {
     #[cfg(feature = "bigint")]
     fn interner_should_return_same_value(value: &BigInt, width: WidthInt) {
         let mut intern = ValueInterner::new();
-        let i0 = intern.get_index(BitVecValue::from_big_int(value, width));
-        let i1 = intern.get_index(BitVecValue::from_big_int(value, width));
+        let i0 = intern.get_index(&BitVecValue::from_big_int(value, width));
+        let i1 = intern.get_index(&BitVecValue::from_big_int(value, width));
         assert_eq!(i0.index, i1.index);
         assert_eq!(i0.width, i1.width);
         let v0 = intern.words().get_ref(i0);
