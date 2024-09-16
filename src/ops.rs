@@ -365,6 +365,15 @@ pub trait BitVecMutOps: BitVecOps {
             *w = 0;
         });
     }
+
+    /// sets all bits to one
+    fn assign_ones(&mut self) {
+        // set everything to one and then mask off the msb
+        self.words_mut().iter_mut().for_each(|w| {
+            *w = Word::MAX;
+        });
+        self.mask_msb();
+    }
 }
 
 pub const DENSE_ARRAY_MAX_INDEX_WIDTH: WidthInt = 48;

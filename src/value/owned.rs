@@ -106,6 +106,12 @@ impl BitVecValue {
         Self { width, words }
     }
 
+    pub fn ones(width: WidthInt) -> Self {
+        let mut out = Self::zero(width);
+        out.assign_ones();
+        out
+    }
+
     pub fn tru() -> Self {
         Self::from_u64(1, 1)
     }
@@ -303,5 +309,13 @@ mod tests {
             7,
             "should mask the top bits"
         );
+    }
+
+    #[test]
+    fn test_ones() {
+        let a = BitVecValue::ones(3);
+        assert_eq!(a.words.as_slice(), &[0b111]);
+        let b = BitVecValue::ones(3 + Word::BITS);
+        assert_eq!(b.words.as_slice(), &[Word::MAX, 0b111]);
     }
 }
