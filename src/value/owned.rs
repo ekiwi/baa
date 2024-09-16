@@ -3,6 +3,7 @@
 // released under BSD 3-Clause License
 // author: Kevin Laeufer <laeufer@cornell.edu>
 
+use crate::io::strings::ParseIntError;
 use crate::ops::{ArrayMutOps, ArrayOps};
 use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
@@ -26,10 +27,10 @@ impl BitVecValue {
         out
     }
 
-    pub fn from_str_radix(value: &str, width: WidthInt) -> Self {
+    pub fn from_str_radix(value: &str, width: WidthInt) -> Result<Self, ParseIntError> {
         let mut out = Self::zero(width);
-        out.assign_from_str_radix(value, 2).unwrap();
-        out
+        out.assign_from_str_radix(value, 2)?;
+        Ok(out)
     }
 
     pub fn from_u64(value: u64, width: WidthInt) -> Self {
