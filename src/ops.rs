@@ -62,6 +62,10 @@ pub trait BitVecOps {
         crate::io::strings::to_bit_str(self.words(), self.width())
     }
 
+    fn to_hex_str(&self) -> String {
+        crate::io::strings::to_hex_str(self.words(), self.width())
+    }
+
     fn to_bytes_le(&self) -> Vec<u8> {
         crate::io::bytes::to_bytes_le(self.words(), self.width())
     }
