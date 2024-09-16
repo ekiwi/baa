@@ -26,6 +26,12 @@ impl BitVecValue {
         out
     }
 
+    pub fn from_radix_str(value: &str, width: WidthInt) -> Self {
+        let mut out = Self::zero(width);
+        out.assign_from_str_radix(value, 2).unwrap();
+        out
+    }
+
     pub fn from_u64(value: u64, width: WidthInt) -> Self {
         let mut out = Self::zero(width);
         out.assign_from_u64(value);
