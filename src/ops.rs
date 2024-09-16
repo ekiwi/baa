@@ -374,6 +374,66 @@ pub trait BitVecMutOps: BitVecOps {
         });
         self.mask_msb();
     }
+
+    fn assign_from_u64(&mut self, value: u64) {
+        debug_assert_eq!(Word::BITS, u64::BITS, "basic assumption of this function");
+        // clear all words
+        self.clear();
+        // assign lsb
+        self.words_mut()[0] = value;
+        // make sure the value agrees with the bit width
+        self.mask_msb();
+        debug_assert_eq!(
+            self.words()[0],
+            value,
+            "value {value} does not fit into {} bits",
+            self.width()
+        );
+    }
+
+    fn assign_from_i64(&mut self, value: i64) {
+        debug_assert_eq!(Word::BITS, i64::BITS, "basic assumption of this function");
+        let width = self.width();
+        // clear all words
+        self.clear();
+        // assign lsb and sign extend if necessary
+        if self.words().len() == 1 {
+            let masked = value as u64 & crate::arithmetic::mask(width);
+            self.words_mut()[0] = masked;
+        } else {
+            crate::arithmetic::sign_extend(self.words_mut(), &[value as u64], u64::BITS, width);
+        };
+
+        #[cfg(debug_assertions)]
+        if self.is_negative() {
+            if self.width() < Word::BITS {
+                let extra_sign_bits =
+                    crate::arithmetic::mask(Word::BITS - self.width()) << self.width();
+                let word_0 = self.words()[0];
+                let word_0_with_bits = word_0 | extra_sign_bits;
+                debug_assert_eq!(
+                    word_0_with_bits,
+                    value as u64,
+                    "value {value} does not fit into {} bits",
+                    self.width()
+                );
+            } else {
+                debug_assert_eq!(
+                    self.words()[0],
+                    value as u64,
+                    "value {value} does not fit into {} bits",
+                    self.width()
+                );
+            }
+        } else {
+            debug_assert_eq!(
+                self.words()[0],
+                value as u64,
+                "value {value} does not fit into {} bits",
+                self.width()
+            );
+        }
+    }
 }
 
 pub const DENSE_ARRAY_MAX_INDEX_WIDTH: WidthInt = 48;
