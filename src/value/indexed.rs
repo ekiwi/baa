@@ -44,6 +44,11 @@ impl BitVecValueIndex {
             index_width,
         }
     }
+
+    #[inline]
+    pub fn width(&self) -> WidthInt {
+        self.width
+    }
 }
 
 /// Implemented by a value stores to convert indices into value references.
