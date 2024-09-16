@@ -27,9 +27,9 @@ impl BitVecValue {
         out
     }
 
-    pub fn from_str_radix(value: &str, width: WidthInt) -> Result<Self, ParseIntError> {
+    pub fn from_str_radix(value: &str, radix: u32, width: WidthInt) -> Result<Self, ParseIntError> {
         let mut out = Self::zero(width);
-        out.assign_from_str_radix(value, 2)?;
+        out.assign_from_str_radix(value, radix)?;
         Ok(out)
     }
 
