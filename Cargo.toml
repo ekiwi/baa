@@ -1,8 +1,8 @@
 [package]
 name = "baa"
-version = "0.7.4"
+version = "0.7.5"
 edition = "2021"
-authors = ["Kevin Laeufer <laeufer@berkeley.edu>"]
+authors = ["Kevin Laeufer <laeufer@cornell.edu>"]
 description = "BitVector and Array Arithmetic"
 repository = "https://github.com/ekiwi/baa"
 license = "BSD-3-Clause"

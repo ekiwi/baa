@@ -315,11 +315,18 @@ fn get_shift_amount(b: &[Word], width: WidthInt) -> Option<WidthInt> {
 
 #[inline]
 pub(crate) fn negate(dst: &mut [Word], b: &[Word], width: WidthInt) {
+    dst.clone_from_slice(&b);
+    negate_in_place(dst, width);
+}
+
+#[inline]
+pub(crate) fn negate_in_place(dst: &mut [Word], width: WidthInt) {
     // we add one by setting the input carry to one
     let mut carry = 1;
-    for (dd, bb) in dst.iter_mut().zip(b.iter()) {
+    for dd in dst.iter_mut() {
         // we invert b which in addition to adding 1 turns it into `-b`
-        carry = adc(dd, carry, 0, !(*bb));
+        let b = !(*dd);
+        carry = adc(dd, carry, 0, b);
     }
     mask_msb(dst, width);
 }
@@ -401,13 +408,13 @@ pub(crate) fn assert_unused_bits_zero(value: &[Word], width: WidthInt) {
 pub(crate) mod tests {
     use super::*;
     use crate::io::strings::to_bit_str;
-    use crate::value::owned::{value_vec, ValueVec};
+    use crate::value::owned::{value_vec_zeros, ValueVec};
     use proptest::prelude::*;
 
     fn from_bit_str(s: &str) -> (ValueVec, WidthInt) {
-        let width = s.len() as WidthInt;
-        let mut out = value_vec(width);
-        crate::io::strings::from_bit_str(s, &mut out);
+        let width = crate::io::strings::determine_width_from_str_radix(s, 2);
+        let mut out = value_vec_zeros(width);
+        crate::io::strings::from_str_radix(s, 2, &mut out, width).unwrap();
         (out, width)
     }
 
@@ -470,7 +477,7 @@ pub(crate) mod tests {
     }
 
     fn width_int_to_bit_str(value: WidthInt, width: WidthInt) -> String {
-        let mut words = value_vec(width);
+        let mut words = value_vec_zeros(width);
         // make sure the shift amount fits into the width
         if width < WidthInt::BITS {
             assert_eq!(
@@ -561,7 +568,7 @@ pub(crate) mod tests {
     fn do_test_zero_ext(src: &str, by: WidthInt) {
         let (src_vec, src_width) = from_bit_str(src);
         let res_width = src_width + by;
-        let mut res_vec = value_vec(res_width);
+        let mut res_vec = value_vec_zeros(res_width);
         zero_extend(&mut res_vec, &src_vec);
         assert_unused_bits_zero(&res_vec, res_width);
         let expected: String = format!("{}{}", "0".repeat(by as usize), src);
@@ -573,7 +580,7 @@ pub(crate) mod tests {
         assert!(!src.is_empty(), "sign extend only works for non zero bits");
         let (src_vec, src_width) = from_bit_str(src);
         let res_width = src_width + by;
-        let mut res_vec = value_vec(res_width);
+        let mut res_vec = value_vec_zeros(res_width);
         sign_extend(&mut res_vec, &src_vec, src_width, res_width);
         assert_unused_bits_zero(&res_vec, res_width);
         let sign_bit = src.chars().next().unwrap().to_string();
@@ -625,7 +632,7 @@ pub(crate) mod tests {
             "{value} does not fit into {width} bits. Needs at least {} bits.",
             value.bits() + 1
         );
-        let mut out = value_vec(width);
+        let mut out = value_vec_zeros(width);
         crate::io::bigint::from_big_int(value, width, &mut out);
         out
     }
@@ -637,7 +644,7 @@ pub(crate) mod tests {
             "{value} does not fit into {width} bits. Needs at least {} bits.",
             value.bits()
         );
-        let mut out = value_vec(width);
+        let mut out = value_vec_zeros(width);
         crate::io::bigint::from_big_uint(value, width, &mut out);
         out
     }
@@ -651,7 +658,7 @@ pub(crate) mod tests {
     ) {
         let a_vec = from_big_int(&a, width);
         let b_vec = from_big_int(&b, width);
-        let mut res_vec: ValueVec = value_vec(width);
+        let mut res_vec: ValueVec = value_vec_zeros(width);
         our(&mut res_vec, &a_vec, &b_vec, width);
         assert_unused_bits_zero(&res_vec, width);
 

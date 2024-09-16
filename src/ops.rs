@@ -5,7 +5,8 @@
 //
 // Traits for operations on bit-vectors.
 
-use crate::value::owned::value_vec;
+use crate::io::strings::ParseIntError;
+use crate::value::owned::value_vec_zeros;
 use crate::{ArrayValueRef, BitVecValue, BitVecValueMutRef, BitVecValueRef, WidthInt, Word};
 
 /// Declares an arithmetic function which takes in two equal size bitvector and yields a
@@ -15,7 +16,7 @@ macro_rules! declare_arith_bin_fn {
         fn $name<R: BitVecOps>(&self, rhs: &R) -> BitVecValue {
             debug_assert_eq!(self.width(), rhs.width());
             debug_assert_eq!(self.words().len(), rhs.words().len());
-            let mut out = value_vec(self.width());
+            let mut out = value_vec_zeros(self.width());
             if self.words().len() == 1 {
                 // specialized for 1-word case
                 crate::arithmetic::$name(
@@ -39,7 +40,7 @@ macro_rules! declare_bit_arith_bin_fn {
         fn $name<R: BitVecOps>(&self, rhs: &R) -> BitVecValue {
             debug_assert_eq!(self.width(), rhs.width());
             debug_assert_eq!(self.words().len(), rhs.words().len());
-            let mut out = value_vec(self.width());
+            let mut out = value_vec_zeros(self.width());
             if self.words().len() == 1 {
                 // specialized for 1-word case
                 crate::arithmetic::$name(&mut out[0..1], &self.words()[0..1], &rhs.words()[0..1]);
@@ -263,7 +264,7 @@ pub trait BitVecOps {
         debug_assert!(msb <= self.width());
         debug_assert!(msb >= lsb);
         let out_width = msb - lsb + 1;
-        let mut out = value_vec(out_width);
+        let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
             crate::arithmetic::slice(&mut out[0..1], self.words(), msb, lsb);
@@ -275,7 +276,7 @@ pub trait BitVecOps {
 
     fn sign_extend(&self, by: WidthInt) -> BitVecValue {
         let out_width = self.width() + by;
-        let mut out = value_vec(out_width);
+        let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
             crate::arithmetic::sign_extend(
@@ -292,7 +293,7 @@ pub trait BitVecOps {
 
     fn zero_extend(&self, by: WidthInt) -> BitVecValue {
         let out_width = self.width() + by;
-        let mut out = value_vec(out_width);
+        let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
             crate::arithmetic::zero_extend(&mut out[0..1], &self.words()[0..1]);
@@ -303,7 +304,7 @@ pub trait BitVecOps {
     }
 
     fn not(&self) -> BitVecValue {
-        let mut out = value_vec(self.width());
+        let mut out = value_vec_zeros(self.width());
         if self.words().len() <= 1 {
             // specialized for 1-word case
             crate::arithmetic::not(&mut out[0..1], &self.words()[0..1], self.width());
@@ -314,7 +315,7 @@ pub trait BitVecOps {
     }
 
     fn negate(&self) -> BitVecValue {
-        let mut out = value_vec(self.width());
+        let mut out = value_vec_zeros(self.width());
         if self.words().len() <= 1 {
             // specialized for 1-word case
             crate::arithmetic::negate(&mut out[0..1], &self.words()[0..1], self.width());
@@ -326,7 +327,7 @@ pub trait BitVecOps {
 
     fn concat<R: BitVecOps + ?Sized>(&self, rhs: &R) -> BitVecValue {
         let out_width = self.width() + rhs.width();
-        let mut out = value_vec(out_width);
+        let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
             crate::arithmetic::concat(
@@ -433,6 +434,15 @@ pub trait BitVecMutOps: BitVecOps {
                 self.width()
             );
         }
+    }
+
+    fn assign_from_str_radix(
+        &mut self,
+        value: &str,
+        radix: u32,
+    ) -> Result<WidthInt, ParseIntError> {
+        let width = self.width();
+        crate::io::strings::from_str_radix(value, radix, self.words_mut(), width)
     }
 }
 

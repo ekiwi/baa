@@ -20,12 +20,10 @@ pub struct BitVecValue {
 impl BitVecValue {
     /// Parse a string of 1s and 0s. The width of the resulting value is the number of digits.
     pub fn from_bit_str(value: &str) -> Self {
-        let mut words = value_vec(value.len() as WidthInt);
-        crate::io::strings::from_bit_str(value, &mut words);
-        Self {
-            width: value.len() as WidthInt,
-            words,
-        }
+        let width = crate::io::strings::determine_width_from_str_radix(value, 2);
+        let mut out = Self::zero(width);
+        out.assign_from_str_radix(value, 2).unwrap();
+        out
     }
 
     pub fn from_u64(value: u64, width: WidthInt) -> Self {
@@ -49,14 +47,13 @@ impl BitVecValue {
     }
 
     pub fn from_bytes_le(bytes: &[u8], bits: WidthInt) -> Self {
-        let mut words = value_vec(bits);
+        let mut words = value_vec_zeros(bits);
         crate::io::bytes::from_bytes_le(bytes, bits, words.as_mut());
         Self { width: bits, words }
     }
 
     pub fn zero(width: WidthInt) -> Self {
-        let num_words = width.div_ceil(Word::BITS) as usize;
-        let words = smallvec![0; num_words];
+        let words = value_vec_zeros(width);
         Self { width, words }
     }
 
@@ -75,14 +72,14 @@ impl BitVecValue {
 
     #[cfg(feature = "bigint")]
     pub fn from_big_int(value: &num_bigint::BigInt, bits: WidthInt) -> Self {
-        let mut words = value_vec(bits);
+        let mut words = value_vec_zeros(bits);
         crate::io::bigint::from_big_int(value, bits, &mut words);
         Self { width: bits, words }
     }
 
     #[cfg(feature = "bigint")]
     pub fn from_big_uint(value: &num_bigint::BigUint, bits: WidthInt) -> Self {
-        let mut words = value_vec(bits);
+        let mut words = value_vec_zeros(bits);
         crate::io::bigint::from_big_uint(value, bits, &mut words);
         Self { width: bits, words }
     }
@@ -129,7 +126,7 @@ impl ArrayMutOps for ArrayValue {
 }
 
 #[inline]
-pub(crate) fn value_vec(width: WidthInt) -> ValueVec {
+pub(crate) fn value_vec_zeros(width: WidthInt) -> ValueVec {
     smallvec![0; width.div_ceil(Word::BITS) as usize]
 }
 
