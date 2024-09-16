@@ -13,7 +13,7 @@ use std::fmt::{Debug, Formatter};
 type WordIndex = u32;
 
 /// Index of a bit-vector value in a shared value store.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct BitVecValueIndex {
     width: WidthInt,
     index: WordIndex,
@@ -211,7 +211,7 @@ fn split_borrow_2(
 }
 
 /// Index of an array value in a shared value store.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ArrayValueIndex {
     first: BitVecValueIndex,
     index_width: WidthInt,
