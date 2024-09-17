@@ -5,7 +5,7 @@
 
 use crate::io::strings::ParseIntError;
 use crate::ops::{ArrayMutOps, ArrayOps};
-use crate::{BitVecMutOps, BitVecOps, WidthInt, Word};
+use crate::{BitVecMutOps, BitVecOps, BitVecValueRef, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
 pub(crate) type ValueVec = SmallVec<[Word; 2]>;
@@ -100,6 +100,12 @@ impl BitVecValue {
 impl From<bool> for BitVecValue {
     fn from(value: bool) -> Self {
         BitVecValue::from_bool(value)
+    }
+}
+
+impl<'a> From<BitVecValueRef<'a>> for BitVecValue {
+    fn from(value: BitVecValueRef<'a>) -> Self {
+        Self::new(value.width, SmallVec::from_slice(value.words))
     }
 }
 
