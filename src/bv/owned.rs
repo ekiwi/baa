@@ -3,8 +3,7 @@
 // released under BSD 3-Clause License
 // author: Kevin Laeufer <laeufer@cornell.edu>
 
-use crate::io::strings::ParseIntError;
-use crate::ops::{ArrayMutOps, ArrayOps};
+use crate::bv::io::strings::ParseIntError;
 use crate::{BitVecMutOps, BitVecOps, BitVecValueRef, WidthInt, Word};
 use smallvec::{smallvec, SmallVec};
 
@@ -21,7 +20,7 @@ pub struct BitVecValue {
 impl BitVecValue {
     /// Parse a string of 1s and 0s. The width of the resulting value is the number of digits.
     pub fn from_bit_str(value: &str) -> Self {
-        let width = crate::io::strings::determine_width_from_str_radix(value, 2);
+        let width = crate::bv::io::strings::determine_width_from_str_radix(value, 2);
         let mut out = Self::zero(width);
         out.assign_from_str_radix(value, 2).unwrap();
         out
@@ -55,7 +54,7 @@ impl BitVecValue {
 
     pub fn from_bytes_le(bytes: &[u8], bits: WidthInt) -> Self {
         let mut words = value_vec_zeros(bits);
-        crate::io::bytes::from_bytes_le(bytes, bits, words.as_mut());
+        crate::bv::io::bytes::from_bytes_le(bytes, bits, words.as_mut());
         Self { width: bits, words }
     }
 
@@ -80,14 +79,14 @@ impl BitVecValue {
     #[cfg(feature = "bigint")]
     pub fn from_big_int(value: &num_bigint::BigInt, bits: WidthInt) -> Self {
         let mut words = value_vec_zeros(bits);
-        crate::io::bigint::from_big_int(value, bits, &mut words);
+        crate::bv::io::bigint::from_big_int(value, bits, &mut words);
         Self { width: bits, words }
     }
 
     #[cfg(feature = "bigint")]
     pub fn from_big_uint(value: &num_bigint::BigUint, bits: WidthInt) -> Self {
         let mut words = value_vec_zeros(bits);
-        crate::io::bigint::from_big_uint(value, bits, &mut words);
+        crate::bv::io::bigint::from_big_uint(value, bits, &mut words);
         Self { width: bits, words }
     }
 
@@ -106,35 +105,6 @@ impl From<bool> for BitVecValue {
 impl<'a> From<BitVecValueRef<'a>> for BitVecValue {
     fn from(value: BitVecValueRef<'a>) -> Self {
         Self::new(value.width, SmallVec::from_slice(value.words))
-    }
-}
-
-/// Owned dense bit-vector array.
-#[derive(Clone)]
-#[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
-pub struct ArrayValue {
-    pub(crate) index_width: WidthInt,
-    pub(crate) data_width: WidthInt,
-    pub(crate) words: Vec<Word>,
-}
-
-impl ArrayOps for ArrayValue {
-    fn index_width(&self) -> WidthInt {
-        self.index_width
-    }
-
-    fn data_width(&self) -> WidthInt {
-        self.data_width
-    }
-
-    fn words(&self) -> &[Word] {
-        &self.words
-    }
-}
-
-impl ArrayMutOps for ArrayValue {
-    fn words_mut(&mut self) -> &mut [Word] {
-        &mut self.words
     }
 }
 
@@ -177,7 +147,7 @@ impl std::fmt::Debug for BitVecValue {
 #[cfg(feature = "bigint")]
 impl From<&num_bigint::BigInt> for BitVecValue {
     fn from(value: &num_bigint::BigInt) -> Self {
-        let bits = crate::io::bigint::count_big_int_bits(value);
+        let bits = crate::bv::io::bigint::count_big_int_bits(value);
         Self::from_big_int(value, bits)
     }
 }
@@ -185,7 +155,7 @@ impl From<&num_bigint::BigInt> for BitVecValue {
 #[cfg(feature = "bigint")]
 impl From<&num_bigint::BigUint> for BitVecValue {
     fn from(value: &num_bigint::BigUint) -> Self {
-        let bits = crate::io::bigint::count_big_uint_bits(value);
+        let bits = crate::bv::io::bigint::count_big_uint_bits(value);
         Self::from_big_uint(value, bits)
     }
 }

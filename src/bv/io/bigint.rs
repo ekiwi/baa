@@ -13,7 +13,7 @@ pub(crate) fn to_big_uint(words: &[Word]) -> num_bigint::BigUint {
 
 fn words_to_u32(words: &[Word]) -> Vec<u32> {
     let mut words32 = Vec::with_capacity(words.len() * 2);
-    let mask32 = crate::arithmetic::mask(32);
+    let mask32 = crate::bv::arithmetic::mask(32);
     for w in words.iter() {
         let word = *w;
         let lsb = (word & mask32) as u32;
@@ -46,7 +46,7 @@ pub(crate) fn to_big_int(words: &[Word], width: WidthInt) -> num_bigint::BigInt 
     // calculate the magnitude
     let words64 = if sign == num_bigint::Sign::Minus {
         let mut negated = vec![0; words.len()];
-        crate::arithmetic::negate(&mut negated, words, width);
+        crate::bv::arithmetic::negate(&mut negated, words, width);
         negated
     } else {
         Vec::from(words)
@@ -61,7 +61,7 @@ pub(crate) fn from_big_int(value: &num_bigint::BigInt, width: WidthInt, out: &mu
     // negate if sign is minus
     if value.sign() == num_bigint::Sign::Minus {
         let out_copy = Vec::from_iter(out.iter().cloned());
-        crate::arithmetic::negate(out, &out_copy, width);
+        crate::bv::arithmetic::negate(out, &out_copy, width);
     }
 }
 
@@ -80,7 +80,7 @@ fn iter_to_word(iter: impl Iterator<Item = Word>, width: WidthInt, out: &mut [Wo
     match num_words.cmp(&word_count) {
         Ordering::Less => unreachable!(),
         Ordering::Equal => {
-            crate::arithmetic::mask_msb(out, width);
+            crate::bv::arithmetic::mask_msb(out, width);
         }
         Ordering::Greater => {
             // zero out remaining words
@@ -123,7 +123,7 @@ mod tests {
         let bits = count_big_int_bits(value);
         let mut out = vec![0; bits.div_ceil(Word::BITS) as usize];
         from_big_int(value, bits as WidthInt, &mut out);
-        crate::arithmetic::assert_unused_bits_zero(&out, bits);
+        crate::bv::arithmetic::assert_unused_bits_zero(&out, bits);
         let value_out = to_big_int(&out, bits as WidthInt);
         assert_eq!(value, &value_out);
     }
@@ -132,7 +132,7 @@ mod tests {
         let bits = count_big_uint_bits(value);
         let mut out = vec![0; bits.div_ceil(Word::BITS) as usize];
         from_big_uint(value, bits as WidthInt, &mut out);
-        crate::arithmetic::assert_unused_bits_zero(&out, bits);
+        crate::bv::arithmetic::assert_unused_bits_zero(&out, bits);
         let value_out = to_big_uint(&out);
         assert_eq!(value, &value_out);
     }

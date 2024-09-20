@@ -192,7 +192,7 @@ pub(crate) fn from_str_radix(
         todo!()
     };
     if is_negative {
-        crate::arithmetic::negate_in_place(out, width)
+        crate::bv::arithmetic::negate_in_place(out, width)
     }
     Ok(width)
 }
@@ -200,7 +200,7 @@ pub(crate) fn from_str_radix(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::value::owned::value_vec_zeros;
+    use crate::bv::owned::value_vec_zeros;
     use proptest::proptest;
 
     fn do_test_from_to_bit_str(s: String) {
@@ -209,7 +209,7 @@ mod tests {
         let width = determine_width_from_str_radix(&s, 2);
         assert_eq!(width as usize, s.len());
         from_str_radix(&s, 2, &mut out, width).unwrap();
-        crate::arithmetic::assert_unused_bits_zero(&out, width);
+        crate::bv::arithmetic::assert_unused_bits_zero(&out, width);
         let s_out = to_bit_str(&out, width);
         assert_eq!(s, s_out);
     }
@@ -227,7 +227,7 @@ mod tests {
         let width = determine_width_from_str_radix(&s, 16);
         assert_eq!(width as usize, s.len() * 4);
         from_str_radix(&s, 16, &mut out, width).unwrap();
-        crate::arithmetic::assert_unused_bits_zero(&out, width);
+        crate::bv::arithmetic::assert_unused_bits_zero(&out, width);
         let s_out = to_hex_str(&out, width);
         assert_eq!(s.to_ascii_lowercase(), s_out);
     }

@@ -5,9 +5,9 @@
 //
 // Traits for operations on bit-vectors.
 
-use crate::io::strings::ParseIntError;
-use crate::value::owned::value_vec_zeros;
-use crate::{ArrayValueRef, BitVecValue, BitVecValueMutRef, BitVecValueRef, WidthInt, Word};
+use crate::bv::io::strings::ParseIntError;
+use crate::bv::owned::value_vec_zeros;
+use crate::{BitVecValue, BitVecValueRef, WidthInt, Word};
 
 /// Declares an arithmetic function which takes in two equal size bitvector and yields a
 /// bitvector of the same size.
@@ -19,14 +19,14 @@ macro_rules! declare_arith_bin_fn {
             let mut out = value_vec_zeros(self.width());
             if self.words().len() == 1 {
                 // specialized for 1-word case
-                crate::arithmetic::$name(
+                crate::bv::arithmetic::$name(
                     &mut out[0..1],
                     &self.words()[0..1],
                     &rhs.words()[0..1],
                     self.width(),
                 );
             } else {
-                crate::arithmetic::$name(&mut out, self.words(), rhs.words(), self.width());
+                crate::bv::arithmetic::$name(&mut out, self.words(), rhs.words(), self.width());
             }
             BitVecValue::new(self.width(), out)
         }
@@ -43,9 +43,13 @@ macro_rules! declare_bit_arith_bin_fn {
             let mut out = value_vec_zeros(self.width());
             if self.words().len() == 1 {
                 // specialized for 1-word case
-                crate::arithmetic::$name(&mut out[0..1], &self.words()[0..1], &rhs.words()[0..1]);
+                crate::bv::arithmetic::$name(
+                    &mut out[0..1],
+                    &self.words()[0..1],
+                    &rhs.words()[0..1],
+                );
             } else {
-                crate::arithmetic::$name(&mut out, self.words(), rhs.words());
+                crate::bv::arithmetic::$name(&mut out, self.words(), rhs.words());
             }
             BitVecValue::new(self.width(), out)
         }
@@ -59,25 +63,25 @@ pub trait BitVecOps {
 
     /// Convert to a string of 1s and 0s.
     fn to_bit_str(&self) -> String {
-        crate::io::strings::to_bit_str(self.words(), self.width())
+        crate::bv::io::strings::to_bit_str(self.words(), self.width())
     }
 
     fn to_hex_str(&self) -> String {
-        crate::io::strings::to_hex_str(self.words(), self.width())
+        crate::bv::io::strings::to_hex_str(self.words(), self.width())
     }
 
     fn to_bytes_le(&self) -> Vec<u8> {
-        crate::io::bytes::to_bytes_le(self.words(), self.width())
+        crate::bv::io::bytes::to_bytes_le(self.words(), self.width())
     }
 
     #[cfg(feature = "bigint")]
     fn to_big_int(&self) -> num_bigint::BigInt {
-        crate::io::bigint::to_big_int(self.words(), self.width())
+        crate::bv::io::bigint::to_big_int(self.words(), self.width())
     }
 
     #[cfg(feature = "bigint")]
     fn to_big_uint(&self) -> num_bigint::BigUint {
-        crate::io::bigint::to_big_uint(self.words())
+        crate::bv::io::bigint::to_big_uint(self.words())
     }
 
     #[cfg(feature = "fraction1")]
@@ -107,7 +111,7 @@ pub trait BitVecOps {
     /// Returns value as a bool iff the value is a 1-bit value.
     fn to_bool(&self) -> Option<bool> {
         if self.width() == 1 {
-            Some(crate::arithmetic::word_to_bool(self.words()[0]))
+            Some(crate::bv::arithmetic::word_to_bool(self.words()[0]))
         } else {
             None
         }
@@ -135,9 +139,9 @@ pub trait BitVecOps {
                 Some(self.words()[0] as i64)
             } else {
                 debug_assert_eq!(self.words().len(), 1);
-                if crate::arithmetic::is_neg(self.words(), self.width()) {
+                if crate::bv::arithmetic::is_neg(self.words(), self.width()) {
                     let extra_sign_bits =
-                        crate::arithmetic::mask(Word::BITS - self.width()) << self.width();
+                        crate::bv::arithmetic::mask(Word::BITS - self.width()) << self.width();
                     Some((self.words()[0] | extra_sign_bits) as i64)
                 } else {
                     Some(self.words()[0] as i64)
@@ -150,7 +154,7 @@ pub trait BitVecOps {
             match (
                 all_zero_msbs,
                 all_max_msbs,
-                crate::arithmetic::is_neg(&[word_0], Word::BITS),
+                crate::bv::arithmetic::is_neg(&[word_0], Word::BITS),
             ) {
                 (true, false, false) => Some(word_0 as i64),
                 (false, true, true) => Some(word_0 as i64),
@@ -172,7 +176,7 @@ pub trait BitVecOps {
     }
 
     fn is_negative(&self) -> bool {
-        crate::arithmetic::is_neg(self.words(), self.width())
+        crate::bv::arithmetic::is_neg(self.words(), self.width())
     }
 
     declare_arith_bin_fn!(add);
@@ -190,9 +194,9 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_equal(self.words(), rhs.words())
+            crate::bv::arithmetic::cmp_equal(self.words(), rhs.words())
         } else {
-            crate::arithmetic::cmp_equal(self.words(), rhs.words())
+            crate::bv::arithmetic::cmp_equal(self.words(), rhs.words())
         }
     }
 
@@ -205,9 +209,9 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater(&self.words()[0..1], &rhs.words()[0..1])
+            crate::bv::arithmetic::cmp_greater(&self.words()[0..1], &rhs.words()[0..1])
         } else {
-            crate::arithmetic::cmp_greater(self.words(), rhs.words())
+            crate::bv::arithmetic::cmp_greater(self.words(), rhs.words())
         }
     }
 
@@ -216,9 +220,9 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_equal(&self.words()[0..1], &rhs.words()[0..1])
+            crate::bv::arithmetic::cmp_greater_equal(&self.words()[0..1], &rhs.words()[0..1])
         } else {
-            crate::arithmetic::cmp_greater(self.words(), rhs.words())
+            crate::bv::arithmetic::cmp_greater(self.words(), rhs.words())
         }
     }
 
@@ -237,13 +241,13 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_signed(
+            crate::bv::arithmetic::cmp_greater_signed(
                 &self.words()[0..1],
                 &rhs.words()[0..1],
                 self.width(),
             )
         } else {
-            crate::arithmetic::cmp_greater_signed(self.words(), rhs.words(), self.width())
+            crate::bv::arithmetic::cmp_greater_signed(self.words(), rhs.words(), self.width())
         }
     }
 
@@ -252,13 +256,13 @@ pub trait BitVecOps {
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case
-            crate::arithmetic::cmp_greater_equal_signed(
+            crate::bv::arithmetic::cmp_greater_equal_signed(
                 &self.words()[0..1],
                 &rhs.words()[0..1],
                 self.width(),
             )
         } else {
-            crate::arithmetic::cmp_greater_equal_signed(self.words(), rhs.words(), self.width())
+            crate::bv::arithmetic::cmp_greater_equal_signed(self.words(), rhs.words(), self.width())
         }
     }
 
@@ -279,9 +283,9 @@ pub trait BitVecOps {
         let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
-            crate::arithmetic::slice(&mut out[0..1], self.words(), msb, lsb);
+            crate::bv::arithmetic::slice(&mut out[0..1], self.words(), msb, lsb);
         } else {
-            crate::arithmetic::slice(&mut out, self.words(), msb, lsb);
+            crate::bv::arithmetic::slice(&mut out, self.words(), msb, lsb);
         }
         BitVecValue::new(out_width, out)
     }
@@ -291,14 +295,14 @@ pub trait BitVecOps {
         let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
-            crate::arithmetic::sign_extend(
+            crate::bv::arithmetic::sign_extend(
                 &mut out[0..1],
                 &self.words()[0..1],
                 self.width(),
                 out_width,
             );
         } else {
-            crate::arithmetic::sign_extend(&mut out, self.words(), self.width(), out_width);
+            crate::bv::arithmetic::sign_extend(&mut out, self.words(), self.width(), out_width);
         }
         BitVecValue::new(out_width, out)
     }
@@ -308,9 +312,9 @@ pub trait BitVecOps {
         let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
-            crate::arithmetic::zero_extend(&mut out[0..1], &self.words()[0..1]);
+            crate::bv::arithmetic::zero_extend(&mut out[0..1], &self.words()[0..1]);
         } else {
-            crate::arithmetic::zero_extend(&mut out, self.words());
+            crate::bv::arithmetic::zero_extend(&mut out, self.words());
         }
         BitVecValue::new(out_width, out)
     }
@@ -319,9 +323,9 @@ pub trait BitVecOps {
         let mut out = value_vec_zeros(self.width());
         if self.words().len() <= 1 {
             // specialized for 1-word case
-            crate::arithmetic::not(&mut out[0..1], &self.words()[0..1], self.width());
+            crate::bv::arithmetic::not(&mut out[0..1], &self.words()[0..1], self.width());
         } else {
-            crate::arithmetic::not(&mut out, self.words(), self.width());
+            crate::bv::arithmetic::not(&mut out, self.words(), self.width());
         }
         BitVecValue::new(self.width(), out)
     }
@@ -330,9 +334,9 @@ pub trait BitVecOps {
         let mut out = value_vec_zeros(self.width());
         if self.words().len() <= 1 {
             // specialized for 1-word case
-            crate::arithmetic::negate(&mut out[0..1], &self.words()[0..1], self.width());
+            crate::bv::arithmetic::negate(&mut out[0..1], &self.words()[0..1], self.width());
         } else {
-            crate::arithmetic::negate(&mut out, self.words(), self.width());
+            crate::bv::arithmetic::negate(&mut out, self.words(), self.width());
         }
         BitVecValue::new(self.width(), out)
     }
@@ -342,14 +346,14 @@ pub trait BitVecOps {
         let mut out = value_vec_zeros(out_width);
         if out_width <= Word::BITS {
             // specialized for 1-word case
-            crate::arithmetic::concat(
+            crate::bv::arithmetic::concat(
                 &mut out[0..1],
                 &self.words()[0..1],
                 &rhs.words()[0..1],
                 rhs.width(),
             );
         } else {
-            crate::arithmetic::concat(&mut out, self.words(), rhs.words(), rhs.width());
+            crate::bv::arithmetic::concat(&mut out, self.words(), rhs.words(), rhs.width());
         }
         BitVecValue::new(out_width, out)
     }
@@ -369,7 +373,7 @@ pub trait BitVecMutOps: BitVecOps {
     /// ensures that all unused bits in the most significant word are set to zero
     fn mask_msb(&mut self) {
         let width = self.width();
-        crate::arithmetic::mask_msb(self.words_mut(), width);
+        crate::bv::arithmetic::mask_msb(self.words_mut(), width);
     }
 
     /// sets all bits to zero
@@ -411,17 +415,17 @@ pub trait BitVecMutOps: BitVecOps {
         self.clear();
         // assign lsb and sign extend if necessary
         if self.words().len() == 1 {
-            let masked = value as u64 & crate::arithmetic::mask(width);
+            let masked = value as u64 & crate::bv::arithmetic::mask(width);
             self.words_mut()[0] = masked;
         } else {
-            crate::arithmetic::sign_extend(self.words_mut(), &[value as u64], u64::BITS, width);
+            crate::bv::arithmetic::sign_extend(self.words_mut(), &[value as u64], u64::BITS, width);
         };
 
         #[cfg(debug_assertions)]
         if self.is_negative() {
             if self.width() < Word::BITS {
                 let extra_sign_bits =
-                    crate::arithmetic::mask(Word::BITS - self.width()) << self.width();
+                    crate::bv::arithmetic::mask(Word::BITS - self.width()) << self.width();
                 let word_0 = self.words()[0];
                 let word_0_with_bits = word_0 | extra_sign_bits;
                 debug_assert_eq!(
@@ -454,79 +458,7 @@ pub trait BitVecMutOps: BitVecOps {
         radix: u32,
     ) -> Result<WidthInt, ParseIntError> {
         let width = self.width();
-        crate::io::strings::from_str_radix(value, radix, self.words_mut(), width)
-    }
-}
-
-pub const DENSE_ARRAY_MAX_INDEX_WIDTH: WidthInt = 48;
-
-/// Operations implemented by read-only array values with a dense representation.
-pub trait ArrayOps {
-    fn index_width(&self) -> WidthInt;
-    fn data_width(&self) -> WidthInt;
-    fn words(&self) -> &[Word];
-    #[inline]
-    fn words_per_element(&self) -> usize {
-        self.data_width().div_ceil(Word::BITS) as usize
-    }
-    #[inline]
-    fn num_elements(&self) -> usize {
-        1usize << self.index_width()
-    }
-    fn select<'a>(&self, index: impl Into<BitVecValueRef<'a>>) -> BitVecValueRef {
-        let index = index.into();
-        debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
-        debug_assert_eq!(self.index_width(), index.width());
-        debug_assert_eq!(index.words().len(), 1);
-        let start = self.words_per_element() * index.words()[0] as usize;
-        let end = start + self.words_per_element();
-        BitVecValueRef::new(self.data_width(), &self.words()[start..end])
-    }
-    fn is_equal<R: ArrayOps + ?Sized>(&self, rhs: &R) -> bool {
-        debug_assert_eq!(self.index_width(), rhs.index_width());
-        debug_assert_eq!(self.data_width(), rhs.data_width());
-        self.words() == rhs.words()
-    }
-}
-
-/// Operations implemented by mutable array values with a dense representation.
-pub trait ArrayMutOps: ArrayOps {
-    fn words_mut(&mut self) -> &mut [Word];
-    fn store<'a, 'b>(
-        &mut self,
-        index: impl Into<BitVecValueRef<'a>>,
-        data: impl Into<BitVecValueRef<'b>>,
-    ) {
-        let index = index.into();
-        debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
-        debug_assert_eq!(self.index_width(), index.width());
-        debug_assert_eq!(index.words().len(), 1);
-        let start = self.words_per_element() * index.words()[0] as usize;
-        let end = start + self.words_per_element();
-        let mut element =
-            BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end]);
-        element.assign(data);
-    }
-    fn select_mut<I: BitVecOps>(&mut self, index: I) -> BitVecValueMutRef {
-        debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
-        debug_assert_eq!(self.index_width(), index.width());
-        debug_assert_eq!(index.words().len(), 1);
-        let start = self.words_per_element() * index.words()[0] as usize;
-        let end = start + self.words_per_element();
-        BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end])
-    }
-    fn assign<'a>(&mut self, value: impl Into<ArrayValueRef<'a>>) {
-        let value = value.into();
-        debug_assert_eq!(self.index_width(), value.index_width());
-        debug_assert_eq!(self.data_width(), value.data_width());
-        debug_assert_eq!(self.words_mut().len(), value.words().len());
-        self.words_mut().copy_from_slice(value.words());
-    }
-    /// sets all bits to zero
-    fn clear(&mut self) {
-        self.words_mut().iter_mut().for_each(|w| {
-            *w = 0;
-        });
+        crate::bv::io::strings::from_str_radix(value, radix, self.words_mut(), width)
     }
 }
 

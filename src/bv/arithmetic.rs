@@ -1,6 +1,7 @@
 // Copyright 2023-2024 The Regents of the University of California
+// Copyright 2024 Cornell University
 // released under BSD 3-Clause License
-// author: Kevin Laeufer <laeufer@berkeley.edu>
+// author: Kevin Laeufer <laeufer@cornell.edu>
 //
 // basic arithmetic implementations
 
@@ -407,14 +408,14 @@ pub(crate) fn assert_unused_bits_zero(value: &[Word], width: WidthInt) {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::io::strings::to_bit_str;
-    use crate::value::owned::{value_vec_zeros, ValueVec};
+    use crate::bv::io::strings::to_bit_str;
+    use crate::bv::owned::{value_vec_zeros, ValueVec};
     use proptest::prelude::*;
 
     fn from_bit_str(s: &str) -> (ValueVec, WidthInt) {
-        let width = crate::io::strings::determine_width_from_str_radix(s, 2);
+        let width = crate::bv::io::strings::determine_width_from_str_radix(s, 2);
         let mut out = value_vec_zeros(width);
-        crate::io::strings::from_str_radix(s, 2, &mut out, width).unwrap();
+        crate::bv::io::strings::from_str_radix(s, 2, &mut out, width).unwrap();
         (out, width)
     }
 
@@ -633,7 +634,7 @@ pub(crate) mod tests {
             value.bits() + 1
         );
         let mut out = value_vec_zeros(width);
-        crate::io::bigint::from_big_int(value, width, &mut out);
+        crate::bv::io::bigint::from_big_int(value, width, &mut out);
         out
     }
 
@@ -645,7 +646,7 @@ pub(crate) mod tests {
             value.bits()
         );
         let mut out = value_vec_zeros(width);
-        crate::io::bigint::from_big_uint(value, width, &mut out);
+        crate::bv::io::bigint::from_big_uint(value, width, &mut out);
         out
     }
 

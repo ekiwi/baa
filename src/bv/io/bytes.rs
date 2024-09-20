@@ -29,13 +29,13 @@ pub(crate) fn from_bytes_le(bytes: &[u8], width: WidthInt, out: &mut [Word]) {
     if width == 0 {
         return;
     }
-    crate::arithmetic::clear(out);
+    crate::bv::arithmetic::clear(out);
     for (ii, bb) in bytes.iter().enumerate() {
         let word_ii = ii / BYTES_PER_WORD as usize;
         let shift_by = u8::BITS * (ii as u32 % BYTES_PER_WORD);
         out[word_ii] |= (*bb as Word) << shift_by;
     }
-    crate::arithmetic::mask_msb(out, width);
+    crate::bv::arithmetic::mask_msb(out, width);
 }
 
 #[cfg(test)]
@@ -68,7 +68,7 @@ mod tests {
         let words = width.div_ceil(Word::BITS) as usize;
         let mut out = vec![0; words];
         from_bytes_le(b, width, &mut out);
-        crate::arithmetic::assert_unused_bits_zero(&out, width);
+        crate::bv::arithmetic::assert_unused_bits_zero(&out, width);
         let b_out = to_bytes_le(&out, width);
         assert_eq!(b, b_out);
     }
