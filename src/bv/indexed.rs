@@ -5,7 +5,7 @@
 // Access a slice of `Word` as a bit-vector.
 
 use crate::bv::borrowed::{BitVecValueMutRef, BitVecValueRef};
-use crate::{ArrayValueIndex, BitVecOps, WidthInt, Word};
+use crate::{BitVecOps, WidthInt, Word};
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
@@ -35,11 +35,6 @@ impl BitVecValueIndex {
         let start = self.index as usize;
         let end = start + self.words();
         start..end
-    }
-
-    #[inline]
-    pub fn to_array_index(&self, index_width: WidthInt) -> ArrayValueIndex {
-        ArrayValueIndex::new(self.clone(), index_width)
     }
 
     #[inline]

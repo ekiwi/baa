@@ -1,6 +1,5 @@
 mod array;
 mod bv;
-pub(crate) mod container;
 
 /// This type restricts the maximum width that a bit-vector type is allowed to have.
 pub type WidthInt = u32;

@@ -12,7 +12,6 @@ mod owned;
 
 pub use arithmetic::mask;
 pub use borrowed::{BitVecValueMutRef, BitVecValueRef};
-pub(crate) use indexed::split_borrow_1;
 pub use indexed::{BitVecValueIndex, IndexToMutRef, IndexToRef, ValueInterner};
 pub use ops::{BitVecMutOps, BitVecOps};
 pub use owned::BitVecValue;
