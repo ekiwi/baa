@@ -5,9 +5,10 @@
 // Borrowed bit-vector and array values.
 
 use crate::{BitVecMutOps, BitVecOps, BitVecValue, WidthInt, Word};
+use std::borrow::Borrow;
 
 /// Bit-vector value that does not own its storage.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash)]
 pub struct BitVecValueRef<'a> {
     pub(crate) width: WidthInt,
     pub(crate) words: &'a [Word],
@@ -77,4 +78,36 @@ impl<'a> BitVecMutOps for BitVecValueMutRef<'a> {
     fn words_mut(&mut self) -> &mut [Word] {
         self.words
     }
+}
+
+impl Borrow<BitVecValueRef> for BitVecValue {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{BitVecMutOps, BitVecValue};
+    use std::borrow::Borrow;
+    use std::hash::{DefaultHasher, Hash, Hasher};
+
+    /// Signature is copied from HashTable::get
+    fn get_hash<Q: ?Sized>(key: &Q) -> u64
+    where
+        BitVecValue: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        let mut hasher = DefaultHasher::new();
+        key.borrow().hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn check_hash(value: BitVecValue) {
+        let value_hash = get_hash(&value);
+        let re = BitVecValueRef::from(&value);
+        let re_hash = get_hash(re);
+        assert_eq!(value, re);
+        assert_eq!(value_hash, re_hash);
+    }
+
+    #[test]
+    fn borrowed_hash() {}
 }

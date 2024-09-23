@@ -5,7 +5,7 @@
 //
 // Traits for operations on arrays.
 
-use crate::{BitVecValueRef, WidthInt, Word};
+use crate::{BitVecValue, BitVecValueRef, WidthInt, Word};
 
 pub const DENSE_ARRAY_MAX_INDEX_WIDTH: WidthInt = 48;
 
@@ -21,7 +21,7 @@ pub trait ArrayOps {
     fn num_elements(&self) -> usize {
         1usize << self.index_width()
     }
-    fn select<'a>(&self, index: impl Into<BitVecValueRef<'a>>) -> BitVecValueRef;
+    fn select<'a>(&self, index: impl Into<BitVecValueRef<'a>>) -> BitVecValue;
     // {
     //     let index = index.into();
     //     debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
@@ -31,7 +31,7 @@ pub trait ArrayOps {
     //     let end = start + self.words_per_element();
     //     BitVecValueRef::new(self.data_width(), &self.words()[start..end])
     // }
-    fn is_equal<R: ArrayOps + ?Sized>(&self, rhs: &R) -> bool;
+    // fn is_equal<R: ArrayOps + ?Sized>(&self, rhs: &R) -> bool;
 
     // {
     //     debug_assert_eq!(self.index_width(), rhs.index_width());
@@ -58,16 +58,6 @@ pub trait ArrayMutOps: ArrayOps {
     //     let mut element =
     //         BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end]);
     //     element.assign(data);
-    // }
-
-    // only works for dense arrays
-    // fn select_mut<I: BitVecOps>(&mut self, index: I) -> BitVecValueMutRef {
-    //     debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
-    //     debug_assert_eq!(self.index_width(), index.width());
-    //     debug_assert_eq!(index.words().len(), 1);
-    //     let start = self.words_per_element() * index.words()[0] as usize;
-    //     let end = start + self.words_per_element();
-    //     BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end])
     // }
 
     // only performs well for dense arrays

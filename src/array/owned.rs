@@ -4,29 +4,40 @@
 // author: Kevin Laeufer <laeufer@cornell.edu>
 
 use crate::array::ops::{ArrayMutOps, ArrayOps};
-use crate::{BitVecValue, WidthInt, Word};
+use crate::{BitVecOps, BitVecValue, BitVecValueRef, WidthInt, Word};
 use std::collections::HashMap;
 
-/// Owned dense bit-vector array.
+/// Owned Array Container.
 #[derive(Clone)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
-pub struct ArrayValue {
-    pub(crate) index_width: WidthInt,
-    pub(crate) data_width: WidthInt,
-    pub(crate) words: Vec<Word>,
+pub enum ArrayValue {
+    Sparse(SparseArrayValue),
+    Dense(DenseArrayValue),
 }
 
-impl ArrayOps for ArrayValue {
-    fn index_width(&self) -> WidthInt {
-        self.index_width
-    }
-
-    fn data_width(&self) -> WidthInt {
-        self.data_width
+impl From<SparseArrayValue> for ArrayValue {
+    fn from(value: SparseArrayValue) -> Self {
+        ArrayValue::Sparse(value)
     }
 }
 
-impl ArrayMutOps for ArrayValue {}
+impl From<DenseArrayValue> for ArrayValue {
+    fn from(value: DenseArrayValue) -> Self {
+        ArrayValue::Dense(value)
+    }
+}
+
+// impl ArrayOps for ArrayValue {
+//     fn index_width(&self) -> WidthInt {
+//         self.index_width
+//     }
+//
+//     fn data_width(&self) -> WidthInt {
+//         self.data_width
+//     }
+// }
+//
+// impl ArrayMutOps for ArrayValue {}
 
 #[derive(Clone)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
@@ -59,6 +70,120 @@ enum SparseArrayImpl {
     U64U64(u64, HashMap<u64, u64>),
     U64Big(BitVecValue, HashMap<u64, BitVecValue>),
     BigBig(BitVecValue, HashMap<BitVecValue, BitVecValue>),
+}
+
+impl SparseArrayValue {
+    /// Checks equivalence for two arrays of the same type (index_width x data_width).
+    fn is_equal(&self, other: &SparseArrayValue) -> Option<bool> {
+        if other.index_width != self.index_width || other.data_width != self.data_width {
+            return None;
+        }
+        match (&self.data, &other.data) {
+            (
+                SparseArrayImpl::U64U64(default_a, map_a),
+                SparseArrayImpl::U64U64(default_b, map_b),
+            ) => {
+                todo!()
+            }
+            (
+                SparseArrayImpl::U64Big(default_a, map_a),
+                SparseArrayImpl::U64Big(default_b, map_b),
+            ) => {
+                todo!()
+            }
+            (
+                SparseArrayImpl::BigBig(default_a, map_a),
+                SparseArrayImpl::BigBig(default_b, map_b),
+            ) => {
+                todo!()
+            }
+            _ => unreachable!(
+                "the representation for two arrays of the same type should always be the same!"
+            ),
+        }
+    }
+}
+
+impl ArrayOps for SparseArrayValue {
+    fn index_width(&self) -> WidthInt {
+        self.index_width
+    }
+    fn data_width(&self) -> WidthInt {
+        self.data_width
+    }
+    fn select<'a>(&self, index: impl Into<BitVecValueRef<'a>>) -> BitVecValue {
+        let index = index.into();
+        debug_assert_eq!(index.width(), self.index_width);
+        match &self.data {
+            SparseArrayImpl::U64U64(default, map) => {
+                let index = index.to_u64().unwrap();
+                let value = map.get(&index).copied().unwrap_or(*default);
+                BitVecValue::from_u64(value, self.data_width)
+            }
+            SparseArrayImpl::U64Big(default, map) => {
+                let index = index.to_u64().unwrap();
+                let value = map.get(&index).cloned().unwrap_or_else(|| default.clone());
+                value
+            }
+            SparseArrayImpl::BigBig(default, map) => {
+                todo!("index with BitVecRef into map!")
+            }
+        }
+    }
+}
+
+impl ArrayMutOps for SparseArrayValue {
+    fn store<'a, 'b>(
+        &mut self,
+        index: impl Into<BitVecValueRef<'a>>,
+        data: impl Into<BitVecValueRef<'b>>,
+    ) {
+        let index = index.into();
+        debug_assert_eq!(index.width(), self.index_width);
+        let data = data.into();
+        debug_assert_eq!(data.width(), self.data_width);
+        match &mut self.data {
+            SparseArrayImpl::U64U64(default, map) => {
+                let index = index.to_u64().unwrap();
+                let data = data.to_u64().unwrap();
+                if data == *default {
+                    // ensures that the default value is used for the given index
+                    map.remove(&index);
+                } else {
+                    map.insert(index, data);
+                }
+            }
+            SparseArrayImpl::U64Big(default, map) => {
+                let index = index.to_u64().unwrap();
+                if data.is_equal(default) {
+                    // ensures that the default value is used for the given index
+                    map.remove(&index);
+                } else {
+                    map.insert(index, data.into());
+                }
+            }
+            SparseArrayImpl::BigBig(default, map) => {
+                todo!("index with BitVecRef into map!")
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        match &mut self.data {
+            SparseArrayImpl::U64U64(default, map) => {
+                *default = 0;
+                map.clear();
+            }
+            SparseArrayImpl::U64Big(default, map) => {
+                *default = BitVecValue::zero(self.data_width);
+                map.clear();
+            }
+            SparseArrayImpl::BigBig(default, map) => {
+                *default = BitVecValue::zero(self.data_width);
+                map.clear();
+            }
+        }
+    }
 }
 
 #[cfg(test)]
