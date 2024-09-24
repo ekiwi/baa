@@ -32,6 +32,18 @@ impl<'a> std::fmt::Debug for BitVecValueRef<'a> {
     }
 }
 
+impl<'a, O: BitVecOps> PartialEq<O> for BitVecValueRef<'a> {
+    fn eq(&self, other: &O) -> bool {
+        if other.width() == self.width {
+            self.is_equal(other)
+        } else {
+            false
+        }
+    }
+}
+
+impl<'a> Eq for BitVecValueRef<'a> {}
+
 pub struct BitVecValueMutRef<'a> {
     pub(crate) width: WidthInt,
     pub(crate) words: &'a mut [Word],
@@ -80,12 +92,17 @@ impl<'a> BitVecMutOps for BitVecValueMutRef<'a> {
     }
 }
 
-impl Borrow<BitVecValueRef> for BitVecValue {}
+impl<'a> Borrow<BitVecValueRef<'a>> for BitVecValue {
+    fn borrow(&self) -> &BitVecValueRef<'a> {
+        todo!()
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{BitVecMutOps, BitVecValue};
+    use proptest::prelude::*;
     use std::borrow::Borrow;
     use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -103,11 +120,28 @@ mod tests {
     fn check_hash(value: BitVecValue) {
         let value_hash = get_hash(&value);
         let re = BitVecValueRef::from(&value);
-        let re_hash = get_hash(re);
+        let re_hash = get_hash(&re);
         assert_eq!(value, re);
         assert_eq!(value_hash, re_hash);
     }
 
     #[test]
-    fn borrowed_hash() {}
+    fn borrowed_hash() {
+        check_hash(BitVecValue::zero(1));
+        check_hash(BitVecValue::zero(1000000));
+    }
+
+    fn bit_str_arg() -> impl Strategy<Value = String> {
+        "[01]+"
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(2000))]
+
+        #[test]
+        fn test_is_neg(a in bit_str_arg()) {
+            let a = BitVecValue::from_bit_str(&a);
+            check_hash(a);
+        }
+    }
 }
