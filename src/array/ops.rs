@@ -20,22 +20,6 @@ pub trait ArrayOps {
         1usize << self.index_width()
     }
     fn select<'a>(&self, index: impl Into<BitVecValueRef<'a>>) -> BitVecValue;
-    // {
-    //     let index = index.into();
-    //     debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
-    //     debug_assert_eq!(self.index_width(), index.width());
-    //     debug_assert_eq!(index.words().len(), 1);
-    //     let start = self.words_per_element() * index.words()[0] as usize;
-    //     let end = start + self.words_per_element();
-    //     BitVecValueRef::new(self.data_width(), &self.words()[start..end])
-    // }
-    // fn is_equal<R: ArrayOps + ?Sized>(&self, rhs: &R) -> bool;
-
-    // {
-    //     debug_assert_eq!(self.index_width(), rhs.index_width());
-    //     debug_assert_eq!(self.data_width(), rhs.data_width());
-    //     self.words() == rhs.words()
-    // }
 }
 
 /// Operations implemented by mutable array values with a dense representation.
@@ -46,32 +30,6 @@ pub trait ArrayMutOps: ArrayOps {
         data: impl Into<BitVecValueRef<'b>>,
     );
 
-    // {
-    //     let index = index.into();
-    //     debug_assert!(self.index_width() <= DENSE_ARRAY_MAX_INDEX_WIDTH);
-    //     debug_assert_eq!(self.index_width(), index.width());
-    //     debug_assert_eq!(index.words().len(), 1);
-    //     let start = self.words_per_element() * index.words()[0] as usize;
-    //     let end = start + self.words_per_element();
-    //     let mut element =
-    //         BitVecValueMutRef::new(self.data_width(), &mut self.words_mut()[start..end]);
-    //     element.assign(data);
-    // }
-
-    // only performs well for dense arrays
-    // fn assign<'a>(&mut self, value: impl Into<ArrayValueRef<'a>>) {
-    //     let value = value.into();
-    //     debug_assert_eq!(self.index_width(), value.index_width());
-    //     debug_assert_eq!(self.data_width(), value.data_width());
-    //     debug_assert_eq!(self.words_mut().len(), value.words().len());
-    //     self.words_mut().copy_from_slice(value.words());
-    // }
     /// sets all bits to zero
     fn clear(&mut self);
-
-    // {
-    //     self.words_mut().iter_mut().for_each(|w| {
-    //         *w = 0;
-    //     });
-    // }
 }
