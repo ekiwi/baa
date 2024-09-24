@@ -290,6 +290,10 @@ pub trait BitVecOps {
         BitVecValue::new(out_width, out)
     }
 
+    fn is_bit_set(&self, pos: WidthInt) -> bool {
+        crate::bv::arithmetic::is_bit_set(self.words(), pos)
+    }
+
     fn sign_extend(&self, by: WidthInt) -> BitVecValue {
         let out_width = self.width() + by;
         let mut out = value_vec_zeros(out_width);
@@ -459,6 +463,14 @@ pub trait BitVecMutOps: BitVecOps {
     ) -> Result<WidthInt, ParseIntError> {
         let width = self.width();
         crate::bv::io::strings::from_str_radix(value, radix, self.words_mut(), width)
+    }
+
+    fn set_bit(&mut self, pos: WidthInt) {
+        crate::bv::arithmetic::set_bit(self.words_mut(), pos);
+    }
+
+    fn clear_bit(&mut self, pos: WidthInt) {
+        crate::bv::arithmetic::clear_bit(self.words_mut(), pos);
     }
 }
 

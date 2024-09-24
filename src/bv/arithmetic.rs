@@ -83,6 +83,27 @@ pub(crate) fn mask_msb(dst: &mut [Word], width: WidthInt) {
 }
 
 #[inline]
+pub(crate) fn is_bit_set(source: &[Word], pos: WidthInt) -> bool {
+    let bit_idx = pos % Word::BITS;
+    let word_idx = (pos / Word::BITS) as usize;
+    (source[word_idx] >> bit_idx) & 1 == 1
+}
+
+#[inline]
+pub(crate) fn set_bit(dst: &mut [Word], pos: WidthInt) {
+    let bit_idx = pos % Word::BITS;
+    let word_idx = (pos / Word::BITS) as usize;
+    dst[word_idx] |= 1 << bit_idx;
+}
+
+#[inline]
+pub(crate) fn clear_bit(dst: &mut [Word], pos: WidthInt) {
+    let bit_idx = pos % Word::BITS;
+    let word_idx = (pos / Word::BITS) as usize;
+    dst[word_idx] &= !(1 << bit_idx);
+}
+
+#[inline]
 pub(crate) fn slice(dst: &mut [Word], source: &[Word], hi: WidthInt, lo: WidthInt) {
     let lo_offset = lo % Word::BITS;
     let hi_word = (hi / Word::BITS) as usize;

@@ -7,8 +7,6 @@
 
 use crate::{BitVecValue, BitVecValueRef, WidthInt, Word};
 
-pub const DENSE_ARRAY_MAX_INDEX_WIDTH: WidthInt = 48;
-
 /// Operations implemented by read-only array values with a dense representation.
 pub trait ArrayOps {
     fn index_width(&self) -> WidthInt;
