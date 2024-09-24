@@ -83,19 +83,37 @@ impl SparseArrayValue {
                 SparseArrayImpl::U64U64(default_a, map_a),
                 SparseArrayImpl::U64U64(default_b, map_b),
             ) => {
-                todo!()
+                if default_a == default_b {
+                    // here we rely on the fact that the default value may never appear in the map
+                    if map_a.len() == map_b.len() {
+                        return Some(map_a == map_b);
+                    }
+                }
+                Some(false)
             }
             (
                 SparseArrayImpl::U64Big(default_a, map_a),
                 SparseArrayImpl::U64Big(default_b, map_b),
             ) => {
-                todo!()
+                if default_a == default_b {
+                    // here we rely on the fact that the default value may never appear in the map
+                    if map_a.len() == map_b.len() {
+                        return Some(map_a == map_b);
+                    }
+                }
+                Some(false)
             }
             (
                 SparseArrayImpl::BigBig(default_a, map_a),
                 SparseArrayImpl::BigBig(default_b, map_b),
             ) => {
-                todo!()
+                if default_a == default_b {
+                    // here we rely on the fact that the default value may never appear in the map
+                    if map_a.len() == map_b.len() {
+                        return Some(map_a == map_b);
+                    }
+                }
+                Some(false)
             }
             _ => unreachable!(
                 "the representation for two arrays of the same type should always be the same!"
@@ -126,7 +144,8 @@ impl ArrayOps for SparseArrayValue {
                 value
             }
             SparseArrayImpl::BigBig(default, map) => {
-                todo!("index with BitVecRef into map!")
+                let value = map.get(&index).cloned().unwrap_or_else(|| default.clone());
+                value
             }
         }
     }
@@ -163,7 +182,12 @@ impl ArrayMutOps for SparseArrayValue {
                 }
             }
             SparseArrayImpl::BigBig(default, map) => {
-                todo!("index with BitVecRef into map!")
+                if data.is_equal(default) {
+                    // ensures that the default value is used for the given index
+                    map.remove(&index);
+                } else {
+                    map.insert(index.into(), data.into());
+                }
             }
         }
     }

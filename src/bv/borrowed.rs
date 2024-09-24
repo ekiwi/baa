@@ -101,7 +101,7 @@ impl<'a> Borrow<BitVecValueRef<'a>> for BitVecValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BitVecMutOps, BitVecValue};
+    use crate::BitVecValue;
     use proptest::prelude::*;
     use std::borrow::Borrow;
     use std::hash::{DefaultHasher, Hash, Hasher};
