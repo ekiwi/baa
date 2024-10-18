@@ -8,6 +8,7 @@ use crate::{
     BitVecMutOps, BitVecOps, BitVecValue, BitVecValueMutRef, BitVecValueRef, WidthInt, Word,
 };
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 
 /// Owned Array Container.
 #[derive(Clone)]
@@ -21,6 +22,15 @@ pub struct ArrayValue {
 enum ArrayImpl {
     Sparse(SparseArrayValue),
     Dense(DenseArrayValue),
+}
+
+impl Debug for ArrayValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.data {
+            ArrayImpl::Sparse(s) => s.fmt(f),
+            ArrayImpl::Dense(d) => d.fmt(f),
+        }
+    }
 }
 
 impl ArrayValue {
@@ -133,6 +143,12 @@ struct DenseArrayValue {
     index_width: WidthInt,
     data_width: WidthInt,
     data: DenseArrayImpl,
+}
+
+impl Debug for DenseArrayValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DenseArrayValue(..)")
+    }
 }
 
 #[derive(Clone)]
@@ -356,6 +372,12 @@ struct SparseArrayValue {
     data: SparseArrayImpl,
 }
 
+impl Debug for SparseArrayValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SparseArrayValue(..)")
+    }
+}
+
 #[derive(Clone)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 enum SparseArrayImpl {
@@ -363,24 +385,6 @@ enum SparseArrayImpl {
     U64Big(BitVecValue, HashMap<u64, BitVecValue>),
     BigBig(BitVecValue, HashMap<BitVecValue, BitVecValue>),
 }
-
-// struct ArrayUpdateIterator<'a> {
-//     inner: ArrayUpdateIteratorImpl<'a>,
-// }
-//
-// impl<'a>Iterator for ArrayUpdateIterator<'a> {
-//     type Item = (BitVecValue, BitVecValue);
-//
-//     fn next(&mut self) -> Option<Self::Item> {
-//         todo!()
-//     }
-// }
-//
-// enum ArrayUpdateIteratorImpl<'a> {
-//     U64U64(std::collections::hash_map::Iter<'a, u64, u64>),
-//     U64Big(std::collections::hash_map::Iter<'a, u64, BitVecValue>),
-//     BigBig(std::collections::hash_map::Iter<'a, BitVecValue, BitVecValue>),
-// }
 
 impl SparseArrayValue {
     fn new<'a>(index_width: WidthInt, default: impl Into<BitVecValueRef<'a>>) -> Self {
@@ -455,21 +459,6 @@ impl SparseArrayValue {
             SparseArrayImpl::BigBig(default, _) => default.clone(),
         }
     }
-
-    // fn updates(&self) -> ArrayUpdateIterator {
-    //     let inner = match &self.data {
-    //         SparseArrayImpl::U64U64(_, map) => {
-    //             ArrayUpdateIteratorImpl::U64U64(map.iter())
-    //         }
-    //         SparseArrayImpl::U64Big(_, map) => {
-    //             ArrayUpdateIteratorImpl::U64Big(map.iter())
-    //         }
-    //         SparseArrayImpl::BigBig(_, map) => {
-    //             ArrayUpdateIteratorImpl::BigBig(map.iter())
-    //         }
-    //     };
-    //     ArrayUpdateIterator { inner }
-    // }
 }
 
 impl ArrayOps for SparseArrayValue {
