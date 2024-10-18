@@ -190,7 +190,13 @@ pub trait BitVecOps {
     declare_bit_arith_bin_fn!(xor);
 
     fn is_equal<R: BitVecOps + ?Sized>(&self, rhs: &R) -> bool {
-        debug_assert_eq!(self.width(), rhs.width());
+        debug_assert_eq!(
+            self.width(),
+            rhs.width(),
+            "cannot compare bv<{}> with bv<{}>",
+            self.width(),
+            rhs.width()
+        );
         debug_assert_eq!(self.words().len(), rhs.words().len());
         if self.words().len() == 1 {
             // specialized for 1-word case

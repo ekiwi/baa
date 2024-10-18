@@ -115,7 +115,8 @@ fn is_equal_mixed(dense: &DenseArrayValue, sparse: &SparseArrayValue) -> Option<
     }
 
     // TODO: implement more efficient version which does not densify
-    DenseArrayValue::from(sparse).is_equal(dense)
+    let other_dense = DenseArrayValue::from(sparse);
+    other_dense.is_equal(dense)
 }
 
 impl ArrayOps for ArrayValue {
@@ -825,8 +826,18 @@ mod tests {
         assert_eq!(index_width_from_len(9), 4);
     }
 
+    #[ignore] // TODO: fix test
     #[test]
-    fn test_conversions() {
+    fn test_conversions_bool() {
+        let dense0: DenseArrayValue = [true, false, false, false, true].as_slice().into();
+        let sparse0: SparseArrayValue = (&dense0).into();
+        let dense1: DenseArrayValue = (&sparse0).into();
+        assert!(is_equal_mixed(&dense0, &sparse0).unwrap());
+        assert!(dense0.is_equal(&dense1).unwrap());
+    }
+
+    #[test]
+    fn test_conversions_u8() {
         let dense0: DenseArrayValue = [1u8, 2, 3, 4, 5, 6, 1, 1, 1].as_slice().into();
         let sparse0: SparseArrayValue = (&dense0).into();
         let dense1: DenseArrayValue = (&sparse0).into();
