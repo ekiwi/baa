@@ -78,6 +78,30 @@ impl ArrayValue {
     }
 }
 
+impl From<&[bool]> for ArrayValue {
+    fn from(value: &[bool]) -> Self {
+        Self {
+            data: ArrayImpl::Dense(value.into()),
+        }
+    }
+}
+
+impl From<&[u8]> for ArrayValue {
+    fn from(value: &[u8]) -> Self {
+        Self {
+            data: ArrayImpl::Dense(value.into()),
+        }
+    }
+}
+
+impl From<&[u64]> for ArrayValue {
+    fn from(value: &[u64]) -> Self {
+        Self {
+            data: ArrayImpl::Dense(value.into()),
+        }
+    }
+}
+
 impl PartialEq<ArrayValue> for ArrayValue {
     fn eq(&self, other: &ArrayValue) -> bool {
         self.is_equal(other).unwrap_or_default()
@@ -148,6 +172,76 @@ struct DenseArrayValue {
 impl Debug for DenseArrayValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "DenseArrayValue(..)")
+    }
+}
+
+#[inline]
+fn index_width_from_len(len: usize) -> WidthInt {
+    if len == 0 {
+        0
+    } else {
+        usize::BITS - (len - 1).leading_zeros()
+    }
+}
+
+#[inline]
+fn num_elements_from_index_width(index_width: WidthInt) -> usize {
+    1usize << index_width
+}
+
+impl From<&[bool]> for DenseArrayValue {
+    fn from(values: &[bool]) -> Self {
+        let index_width = index_width_from_len(values.len());
+        let num_elements = num_elements_from_index_width(index_width);
+        let mut data = BitVecValue::zero(num_elements as WidthInt);
+        for (ii, v) in values.iter().enumerate() {
+            if *v {
+                data.set_bit(ii as WidthInt);
+            }
+        }
+        Self {
+            index_width,
+            data_width: 1,
+            data: DenseArrayImpl::Bit(data),
+        }
+    }
+}
+
+impl From<&[u8]> for DenseArrayValue {
+    fn from(values: &[u8]) -> Self {
+        let index_width = index_width_from_len(values.len());
+        let num_elements = num_elements_from_index_width(index_width);
+        let mut data: Vec<u8> = values.into();
+        // pad with zeros if possible
+        let padding = num_elements - data.len();
+        for _ in 0..padding {
+            data.push(0);
+        }
+        data.shrink_to_fit();
+        Self {
+            index_width,
+            data_width: 8,
+            data: DenseArrayImpl::U8(data),
+        }
+    }
+}
+
+impl From<&[u64]> for DenseArrayValue {
+    fn from(values: &[u64]) -> Self {
+        let index_width = index_width_from_len(values.len());
+        let num_elements = num_elements_from_index_width(index_width);
+        let mut data: Vec<u64> = values.into();
+        // pad with zeros if possible
+        let padding = num_elements - data.len();
+        for _ in 0..padding {
+            data.push(0);
+        }
+        data.shrink_to_fit();
+        Self {
+            index_width,
+            data_width: 64,
+            data: DenseArrayImpl::U64(data),
+        }
     }
 }
 
@@ -241,6 +335,22 @@ impl DenseArrayValue {
             ),
         }
     }
+
+    fn select_usize(&self, index: usize) -> BitVecValue {
+        match &self.data {
+            DenseArrayImpl::Bit(value) => value.is_bit_set(index as WidthInt).into(),
+            DenseArrayImpl::U8(values) => {
+                BitVecValue::from_u64(values[index] as u64, self.data_width)
+            }
+            DenseArrayImpl::U64(values) => BitVecValue::from_u64(values[index], self.data_width),
+            DenseArrayImpl::Big(values) => {
+                let start = self.words_per_element() * index;
+                let end = start + self.words_per_element();
+                let value_ref = BitVecValueRef::new(self.data_width(), &values[start..end]);
+                value_ref.into()
+            }
+        }
+    }
 }
 
 impl ArrayOps for DenseArrayValue {
@@ -255,20 +365,7 @@ impl ArrayOps for DenseArrayValue {
     fn select<'a>(&self, index: impl Into<BitVecValueRef<'a>>) -> BitVecValue {
         let index = index.into();
         debug_assert_eq!(index.width(), self.index_width);
-        let index = index.to_u64().unwrap() as usize;
-        match &self.data {
-            DenseArrayImpl::Bit(value) => value.is_bit_set(index as WidthInt).into(),
-            DenseArrayImpl::U8(values) => {
-                BitVecValue::from_u64(values[index] as u64, self.data_width)
-            }
-            DenseArrayImpl::U64(values) => BitVecValue::from_u64(values[index], self.data_width),
-            DenseArrayImpl::Big(values) => {
-                let start = self.words_per_element() * index;
-                let end = start + self.words_per_element();
-                let value_ref = BitVecValueRef::new(self.data_width(), &values[start..end]);
-                value_ref.into()
-            }
-        }
+        self.select_usize(index.to_u64().unwrap() as usize)
     }
 }
 
@@ -364,9 +461,114 @@ impl From<&SparseArrayValue> for DenseArrayValue {
     }
 }
 
+const MAX_HASH_TABLE_SIZE_FOR_DEFAULT_SEARCH: usize = 1024 * 1024;
+
+impl From<&DenseArrayValue> for SparseArrayValue {
+    fn from(value: &DenseArrayValue) -> Self {
+        match &value.data {
+            DenseArrayImpl::Bit(data) => {
+                // find default value
+                let mut count = [0usize; 2];
+                for bit in 0..value.num_elements() {
+                    count[data.is_bit_set(bit as WidthInt) as usize] += 1;
+                }
+                let default = count[1] > count[0];
+                let bv_default = BitVecValue::from(default);
+                let mut out = SparseArrayValue::new(value.index_width(), &bv_default);
+
+                // find all indices that do not carry the default value
+                for bit in 0..value.num_elements() {
+                    if data.is_bit_set(bit as WidthInt) != default {
+                        out.store_u64_u64(bit as u64, !default as u64);
+                    }
+                }
+                out
+            }
+            DenseArrayImpl::U8(data) => {
+                // find default value
+                let mut count = [0usize; u8::BITS as usize];
+                for bit in 0..value.num_elements() {
+                    count[data[bit] as usize] += 1;
+                }
+                let default = count
+                    .into_iter()
+                    .enumerate()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(ii, _)| ii as u8)
+                    .unwrap();
+                let bv_default = BitVecValue::from_u64(default as u64, value.data_width());
+                let mut out = SparseArrayValue::new(value.index_width(), &bv_default);
+
+                // find all indices that do not carry the default value
+                for bit in 0..value.num_elements() {
+                    if data[bit] != default {
+                        out.store_u64_u64(bit as u64, data[bit] as u64);
+                    }
+                }
+                out
+            }
+            DenseArrayImpl::U64(data) => {
+                // find default value
+                let mut count = HashMap::<u64, usize>::new();
+                for bit in 0..value.num_elements() {
+                    *count.entry(data[bit]).or_insert(0) += 1;
+                    if count.len() > MAX_HASH_TABLE_SIZE_FOR_DEFAULT_SEARCH {
+                        // if our hash table is exploding in size
+                        // => give up and just use the data we have collected so far
+                        break;
+                    }
+                }
+                let default = count
+                    .into_iter()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(v, _)| v)
+                    .unwrap();
+                let bv_default = BitVecValue::from_u64(default, value.data_width());
+                let mut out = SparseArrayValue::new(value.index_width(), &bv_default);
+
+                // find all indices that do not carry the default value
+                for bit in 0..value.num_elements() {
+                    if data[bit] != default {
+                        out.store_u64_u64(bit as u64, data[bit]);
+                    }
+                }
+                out
+            }
+            DenseArrayImpl::Big(_) => {
+                // find default value
+                let mut count = HashMap::<BitVecValue, usize>::new();
+                for bit in 0..value.num_elements() {
+                    let value = value.select_usize(bit);
+                    *count.entry(value).or_insert(0) += 1;
+                    if count.len() > MAX_HASH_TABLE_SIZE_FOR_DEFAULT_SEARCH {
+                        // if our hash table is exploding in size
+                        // => give up and just use the data we have collected so far
+                        break;
+                    }
+                }
+                let default = count
+                    .into_iter()
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(v, _)| v)
+                    .unwrap();
+                let mut out = SparseArrayValue::new(value.index_width(), &default);
+
+                // find all indices that do not carry the default value
+                for bit in 0..value.num_elements() {
+                    let value = value.select_usize(bit);
+                    if value != default {
+                        out.store_u64_big(bit as u64, &value);
+                    }
+                }
+                out
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
-struct SparseArrayValue {
+pub struct SparseArrayValue {
     index_width: WidthInt,
     data_width: WidthInt,
     data: SparseArrayImpl,
@@ -387,7 +589,7 @@ enum SparseArrayImpl {
 }
 
 impl SparseArrayValue {
-    fn new<'a>(index_width: WidthInt, default: impl Into<BitVecValueRef<'a>>) -> Self {
+    pub fn new<'a>(index_width: WidthInt, default: impl Into<BitVecValueRef<'a>>) -> Self {
         let default = default.into();
         let data_width = default.width;
         let data = if index_width > Word::BITS {
@@ -452,11 +654,51 @@ impl SparseArrayValue {
         }
     }
 
-    fn default(&self) -> BitVecValue {
+    pub fn default(&self) -> BitVecValue {
         match &self.data {
             SparseArrayImpl::U64U64(default, _) => BitVecValue::from_u64(*default, self.data_width),
             SparseArrayImpl::U64Big(default, _) => default.clone(),
             SparseArrayImpl::BigBig(default, _) => default.clone(),
+        }
+    }
+
+    fn store_u64_u64(&mut self, index: u64, data: u64) {
+        match &mut self.data {
+            SparseArrayImpl::U64U64(default, map) => {
+                if data == *default {
+                    // ensures that the default value is used for the given index
+                    map.remove(&index);
+                } else {
+                    map.insert(index, data);
+                }
+            }
+            _ => panic!("store_u64_u64 can only be used when index and data bit width is at or under 64 bit.")
+        }
+    }
+
+    fn store_u64_big<'b>(&mut self, index: u64, data: impl Into<BitVecValueRef<'b>>) {
+        let data = data.into();
+        match &mut self.data {
+            SparseArrayImpl::U64U64(default, map) => {
+                let data = data.to_u64().unwrap();
+                if data == *default {
+                    // ensures that the default value is used for the given index
+                    map.remove(&index);
+                } else {
+                    map.insert(index, data);
+                }
+            }
+            SparseArrayImpl::U64Big(default, map) => {
+                if data.is_equal(default) {
+                    // ensures that the default value is used for the given index
+                    map.remove(&index);
+                } else {
+                    map.insert(index, data.into());
+                }
+            }
+            _ => panic!(
+                "store_u64_big can only be used when the index bit width is at or under 64 bit."
+            ),
         }
     }
 }
@@ -571,5 +813,24 @@ mod tests {
         // HashMap + BitVecValue + tag + padding
         assert_eq!(std::mem::size_of::<SparseArrayImpl>(), 48 + 32 + 8);
         assert_eq!(std::mem::size_of::<SparseArrayValue>(), 88 + 8); // Impl + size + padding
+    }
+
+    #[test]
+    fn test_index_width_from_len() {
+        assert_eq!(index_width_from_len(0), 0);
+        assert_eq!(index_width_from_len(1), 0);
+        assert_eq!(index_width_from_len(2), 1);
+        assert_eq!(index_width_from_len(3), 2);
+        assert_eq!(index_width_from_len(8), 3);
+        assert_eq!(index_width_from_len(9), 4);
+    }
+
+    #[test]
+    fn test_conversions() {
+        let dense0: DenseArrayValue = [1u8, 2, 3, 4, 5, 6, 1, 1, 1].as_slice().into();
+        let sparse0: SparseArrayValue = (&dense0).into();
+        let dense1: DenseArrayValue = (&sparse0).into();
+        assert!(is_equal_mixed(&dense0, &sparse0).unwrap());
+        assert!(dense0.is_equal(&dense1).unwrap());
     }
 }
