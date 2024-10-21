@@ -14,5 +14,27 @@ pub enum Value {
     BitVec(BitVecValue),
 }
 
+impl TryFrom<Value> for ArrayValue {
+    type Error = ();
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Array(v) => Ok(v),
+            Value::BitVec(_) => Err(()),
+        }
+    }
+}
+
+impl TryFrom<Value> for BitVecValue {
+    type Error = ();
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::BitVec(v) => Ok(v),
+            Value::Array(_) => Err(()),
+        }
+    }
+}
+
 pub use array::*;
 pub use bv::*;
