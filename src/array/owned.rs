@@ -843,4 +843,13 @@ mod tests {
         assert!(is_equal_mixed(&dense0, &sparse0).unwrap());
         assert!(dense0.is_equal(&dense1).unwrap());
     }
+
+    #[test]
+    fn test_conversions_u64() {
+        let dense0: DenseArrayValue = [1u64, 2, 3, 4, 5, 6, 1, 1, 1].as_slice().into();
+        let sparse0: SparseArrayValue = (&dense0).into();
+        let dense1: DenseArrayValue = (&sparse0).into();
+        assert!(is_equal_mixed(&dense0, &sparse0).unwrap());
+        assert!(dense0.is_equal(&dense1).unwrap());
+    }
 }
