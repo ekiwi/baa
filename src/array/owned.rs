@@ -288,10 +288,10 @@ impl DenseArrayValue {
         let elements = 1usize << index_width;
         let data = if data_width == 1 {
             if default.is_tru() {
-                DenseArrayImpl::Bit(BitVecValue::ones(data_width))
+                DenseArrayImpl::Bit(BitVecValue::ones(elements as WidthInt))
             } else {
                 debug_assert!(default.is_fals());
-                DenseArrayImpl::Bit(BitVecValue::zero(data_width))
+                DenseArrayImpl::Bit(BitVecValue::zero(elements as WidthInt))
             }
         } else if data_width <= u8::BITS {
             let default = default.to_u64().unwrap() as u8;
@@ -826,7 +826,6 @@ mod tests {
         assert_eq!(index_width_from_len(9), 4);
     }
 
-    #[ignore] // TODO: fix test
     #[test]
     fn test_conversions_bool() {
         let dense0: DenseArrayValue = [true, false, false, false, true].as_slice().into();
