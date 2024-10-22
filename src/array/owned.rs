@@ -102,6 +102,15 @@ impl From<&[u64]> for ArrayValue {
     }
 }
 
+impl From<ArrayValue> for SparseArrayValue {
+    fn from(value: ArrayValue) -> Self {
+        match value.data {
+            ArrayImpl::Sparse(s) => s,
+            ArrayImpl::Dense(d) => (&d).into(),
+        }
+    }
+}
+
 impl PartialEq<ArrayValue> for ArrayValue {
     fn eq(&self, other: &ArrayValue) -> bool {
         self.is_equal(other).unwrap_or_default()
@@ -700,6 +709,62 @@ impl SparseArrayValue {
             _ => panic!(
                 "store_u64_big can only be used when the index bit width is at or under 64 bit."
             ),
+        }
+    }
+
+    /// Returns an iterator to all index/data pairs that do not evaluate to the default value.
+    /// Note that the order of entries is non-deterministic. Convert to a Vec and sort of you
+    /// want to ensure a predictable outcome.
+    pub fn non_default_entries(&self) -> SparseArrayEntryIter {
+        let underlying = match &self.data {
+            SparseArrayImpl::U64U64(_, m) => SparseArrayIterImpl::U64U64(m.iter()),
+            SparseArrayImpl::U64Big(_, m) => SparseArrayIterImpl::U64Big(m.iter()),
+            SparseArrayImpl::BigBig(_, m) => SparseArrayIterImpl::BigBig(m.iter()),
+        };
+        let (index_width, data_width) = (self.index_width, self.data_width);
+        SparseArrayEntryIter {
+            index_width,
+            data_width,
+            underlying,
+        }
+    }
+}
+
+pub struct SparseArrayEntryIter<'a> {
+    index_width: WidthInt,
+    data_width: WidthInt,
+    underlying: SparseArrayIterImpl<'a>,
+}
+
+enum SparseArrayIterImpl<'a> {
+    U64U64(std::collections::hash_map::Iter<'a, u64, u64>),
+    U64Big(std::collections::hash_map::Iter<'a, u64, BitVecValue>),
+    BigBig(std::collections::hash_map::Iter<'a, BitVecValue, BitVecValue>),
+}
+
+impl<'a> Iterator for SparseArrayEntryIter<'a> {
+    type Item = (BitVecValue, BitVecValue);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &mut self.underlying {
+            SparseArrayIterImpl::U64U64(iter) => {
+                let (index, value) = iter.next()?;
+                Some((
+                    BitVecValue::from_u64(*index, self.index_width),
+                    BitVecValue::from_u64(*value, self.data_width),
+                ))
+            }
+            SparseArrayIterImpl::U64Big(iter) => {
+                let (index, value) = iter.next()?;
+                Some((
+                    BitVecValue::from_u64(*index, self.index_width),
+                    value.clone(),
+                ))
+            }
+            SparseArrayIterImpl::BigBig(iter) => {
+                let (index, value) = iter.next()?;
+                Some((index.clone(), value.clone()))
+            }
         }
     }
 }

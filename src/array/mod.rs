@@ -6,4 +6,4 @@ mod ops;
 mod owned;
 
 pub use ops::{ArrayMutOps, ArrayOps};
-pub use owned::ArrayValue;
+pub use owned::{ArrayValue, SparseArrayValue};
