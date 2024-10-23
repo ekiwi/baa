@@ -140,7 +140,7 @@ mod tests {
 
         #[test]
         fn test_is_neg(a in bit_str_arg()) {
-            let a = BitVecValue::from_bit_str(&a);
+            let a = BitVecValue::from_bit_str(&a).unwrap();
             check_hash(a);
         }
     }

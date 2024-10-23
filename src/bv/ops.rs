@@ -462,11 +462,7 @@ pub trait BitVecMutOps: BitVecOps {
         }
     }
 
-    fn assign_from_str_radix(
-        &mut self,
-        value: &str,
-        radix: u32,
-    ) -> Result<WidthInt, ParseIntError> {
+    fn assign_from_str_radix(&mut self, value: &str, radix: u32) -> Result<(), ParseIntError> {
         let width = self.width();
         crate::bv::io::strings::from_str_radix(value, radix, self.words_mut(), width)
     }

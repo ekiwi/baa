@@ -107,15 +107,11 @@ pub(crate) fn from_str_radix(
     value: &str,
     radix: u32,
     out: &mut [Word],
-    max_width: WidthInt,
-) -> Result<WidthInt, ParseIntError> {
-    if !(radix == 2 || radix == 16) {
-        panic!("from_str_radix: only the following radii are supported: 2. Got {radix}.");
-    }
-
+    width: WidthInt,
+) -> Result<(), ParseIntError> {
     // The empty string becomes a 0-bit vector.
     if value.is_empty() {
-        return Ok(0);
+        return Ok(());
     }
 
     // treat string as bytes
@@ -133,67 +129,86 @@ pub(crate) fn from_str_radix(
         _ => (false, digits),
     };
 
-    let width = if radix == 2 {
-        let width = digits.len() as WidthInt;
-        // TODO: ignore zeros
-        if width > max_width {
-            return Err(ParseIntError {
-                kind: IntErrorKind::ExceedsWidth,
-            });
-        }
-
-        let words = width.div_ceil(Word::BITS);
-        let mut word = 0 as Word;
-        let mut out_ii = (words - 1) as usize;
-
-        for (ii, cc) in digits.into_iter().enumerate() {
-            let ii_rev = width as usize - ii - 1;
-            if ii > 0 && ((ii_rev + 1) % Word::BITS as usize) == 0 {
-                out[out_ii] = word;
-                out_ii -= 1;
-                word = 0;
-            }
-
-            let value = match cc {
-                b'1' => 1,
-                b'0' => 0,
-                _ => {
-                    return Err(ParseIntError {
-                        kind: IntErrorKind::InvalidDigit,
-                    })
-                }
-            };
-            word = (word << 1) | value;
-        }
-        debug_assert_eq!(out_ii, 0);
-        out[0] = word;
-        width
-    } else if radix == 16 {
-        let num_digits = digits.len();
-        let words = (num_digits as u32 * BITS_PER_HEX_DIGIT).div_ceil(Word::BITS);
-        let mut word = 0 as Word;
-        let mut out_ii = (words - 1) as usize;
-
-        // read from right to left
-        for (ii, cc) in digits.into_iter().enumerate() {
-            let ii_rev = num_digits - ii - 1;
-            if ii > 0 && ((ii_rev + 1) % WORD_HEX_DIGITS as usize) == 0 {
-                out[out_ii] = word;
-                out_ii -= 1;
-                word = 0;
-            }
-            let value = hex_digit_value(*cc)?;
-            word = (word << BITS_PER_HEX_DIGIT) | (value as Word);
-        }
-        debug_assert_eq!(out_ii, 0);
-        out[0] = word;
-        num_digits as u32 * BITS_PER_HEX_DIGIT
-    } else {
-        todo!()
+    match radix {
+        2 => parse_base_2(digits, out, width)?,
+        10 => parse_base_10(digits, out, width)?,
+        16 => parse_base_16(digits, out)?,
+        _ => todo!("Implement support for base {radix}. Currently the following bases are available: 2, 10, 16"),
     };
     if is_negative {
         crate::bv::arithmetic::negate_in_place(out, width)
     }
+    Ok(())
+}
+
+fn parse_base_16(digits: &[u8], out: &mut [Word]) -> Result<WidthInt, ParseIntError> {
+    let num_digits = digits.len();
+    let words = (num_digits as u32 * BITS_PER_HEX_DIGIT).div_ceil(Word::BITS);
+    let mut word = 0 as Word;
+    let mut out_ii = (words - 1) as usize;
+
+    // read from right to left
+    for (ii, cc) in digits.into_iter().enumerate() {
+        let ii_rev = num_digits - ii - 1;
+        if ii > 0 && ((ii_rev + 1) % WORD_HEX_DIGITS as usize) == 0 {
+            out[out_ii] = word;
+            out_ii -= 1;
+            word = 0;
+        }
+        let value = hex_digit_value(*cc)?;
+        word = (word << BITS_PER_HEX_DIGIT) | (value as Word);
+    }
+    debug_assert_eq!(out_ii, 0);
+    out[0] = word;
+    Ok(num_digits as u32 * BITS_PER_HEX_DIGIT)
+}
+
+fn parse_base_10(
+    digits: &[u8],
+    out: &mut [Word],
+    max_width: WidthInt,
+) -> Result<WidthInt, ParseIntError> {
+    todo!()
+}
+
+fn parse_base_2(
+    digits: &[u8],
+    out: &mut [Word],
+    max_width: WidthInt,
+) -> Result<WidthInt, ParseIntError> {
+    let width = digits.len() as WidthInt;
+    // TODO: ignore zeros
+    if width > max_width {
+        return Err(ParseIntError {
+            kind: IntErrorKind::ExceedsWidth,
+        });
+    }
+
+    let words = width.div_ceil(Word::BITS);
+    let mut word = 0 as Word;
+    let mut out_ii = (words - 1) as usize;
+
+    for (ii, cc) in digits.into_iter().enumerate() {
+        let ii_rev = width as usize - ii - 1;
+        if ii > 0 && ((ii_rev + 1) % Word::BITS as usize) == 0 {
+            out[out_ii] = word;
+            out_ii -= 1;
+            word = 0;
+        }
+
+        let value = match cc {
+            b'1' => 1,
+            b'0' => 0,
+            _ => {
+                return Err(ParseIntError {
+                    kind: IntErrorKind::InvalidDigit,
+                })
+            }
+        };
+        word = (word << 1) | value;
+    }
+    debug_assert_eq!(out_ii, 0);
+    out[0] = word;
     Ok(width)
 }
 

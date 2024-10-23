@@ -20,11 +20,15 @@ pub struct BitVecValue {
 
 impl BitVecValue {
     /// Parse a string of 1s and 0s. The width of the resulting value is the number of digits.
-    pub fn from_bit_str(value: &str) -> Self {
+    pub fn from_bit_str(value: &str) -> Result<Self, ParseIntError> {
         let width = crate::bv::io::strings::determine_width_from_str_radix(value, 2);
-        let mut out = Self::zero(width);
-        out.assign_from_str_radix(value, 2).unwrap();
-        out
+        Self::from_str_radix(value, 2, width)
+    }
+
+    /// Parse a string of hex digits. The width of the resulting value is the number of digits times 4.
+    pub fn from_hex_str(value: &str) -> Result<Self, ParseIntError> {
+        let width = crate::bv::io::strings::determine_width_from_str_radix(value, 16);
+        Self::from_str_radix(value, 16, width)
     }
 
     pub fn from_str_radix(value: &str, radix: u32, width: WidthInt) -> Result<Self, ParseIntError> {
