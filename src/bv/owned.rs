@@ -10,7 +10,8 @@ use smallvec::{smallvec, SmallVec};
 pub(crate) type ValueVec = SmallVec<[Word; 2]>;
 
 /// Owned bit-vector value.
-#[derive(Clone, Hash)]
+/// Note: Ord does not necessarily order by value.
+#[derive(Clone, Hash, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 pub struct BitVecValue {
     pub(crate) width: WidthInt,
