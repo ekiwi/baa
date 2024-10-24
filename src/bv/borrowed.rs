@@ -129,6 +129,7 @@ mod tests {
     fn borrowed_hash() {
         check_hash(BitVecValue::zero(1));
         check_hash(BitVecValue::zero(1000000));
+        check_hash(BitVecValue::from_bit_str("11").unwrap());
     }
 
     fn bit_str_arg() -> impl Strategy<Value = String> {

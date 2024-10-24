@@ -66,8 +66,19 @@ pub trait BitVecOps {
         crate::bv::io::strings::to_bit_str(self.words(), self.width())
     }
 
+    /// Convert to a string of 1s and 0s with a `-` if the value is negative.
+    fn to_bit_str_signed(&self) -> String {
+        crate::bv::io::strings::to_bit_str_signed(self.words(), self.width())
+    }
+
+    /// Convert to a string of hex characters
     fn to_hex_str(&self) -> String {
         crate::bv::io::strings::to_hex_str(self.words(), self.width())
+    }
+
+    /// Convert to a string of hex characters with a `-` if the value is negative.
+    fn to_hex_str_signed(&self) -> String {
+        crate::bv::io::strings::to_hex_str_signed(self.words(), self.width())
     }
 
     fn to_bytes_le(&self) -> Vec<u8> {

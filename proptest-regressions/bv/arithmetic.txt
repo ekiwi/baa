@@ -1,0 +1,14 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc d8a2060964925b8db577e1473bdf9bedcd9e31d5b19f0404ddb8d174620a751e # shrinks to a = "10"
+cc 44630f29efa8b6c62293a52fe601e58198a897a77ea6b1db70e568916d1f1ceb # shrinks to s = "10", by = 0
+cc 08799c0deb3bcaa4c9448cbda9feb83b9621c2ad11455bbbe4c24fb6b547d8fe # shrinks to s = "10", by = 0
+cc 5ed138da5c5c0a836870c701076ad0f812e3cbbb01dcc2899bf6a04a61641976 # shrinks to a = "0", b = "0"
+cc a24990b3f9c8aebaa9ffae937d99116b2faa431d9f0e9270cc49ddf114088f18 # shrinks to (s, by) = ("00", 2)
+cc e39d7e5e9be91ead6334200699a5d76f84d0886cda8cab326478a41378a732f2 # shrinks to (s, by) = ("00", 2)
+cc 1a2e90bbd8408cc05207a971562051c72a77f58d30b70fd1ff095e595eaca284 # shrinks to (s, by) = ("00", 2)
+cc f6a72ed519966d03d42decd8e0d0ba48fee677d064ea3d70516905a0e76aff78 # shrinks to (s, msb, lsb) = ("11", 0, 0)
