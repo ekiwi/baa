@@ -181,9 +181,34 @@ impl BitVecMutOps for BitVecValue {
     }
 }
 
+type DoubleWord = u128;
+
+union BitVecStorage {
+    word: Word,
+    double: DoubleWord,
+    large: std::mem::ManuallyDrop<Box<[Word]>>,
+}
+
+// The u128 is unaligned in order to fit everything into 24 instead of 36 bytes.
+#[repr(packed(8))]
+struct NewBitVecValue {
+    data: BitVecStorage,
+    width: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_type_size() {
+        // pointer + len
+        assert_eq!(std::mem::size_of::<Box<[Word]>>(), 2 * 8);
+        // union size = size of largest element
+        assert_eq!(std::mem::size_of::<BitVecStorage>(), 2 * 8);
+        // storage + width + padding
+        assert_eq!(std::mem::size_of::<NewBitVecValue>(), 2 * 8 + 4 + 4);
+    }
 
     #[test]
     fn type_size() {
