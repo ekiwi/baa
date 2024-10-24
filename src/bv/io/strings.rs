@@ -3,7 +3,7 @@
 // author: Kevin Laeufer <laeufer@berkeley.edu>
 
 use crate::bv::arithmetic::{is_neg, negate_in_place};
-use crate::{WidthInt, Word};
+use crate::{BitVecMutOps, BitVecOps, BitVecValue, BitVecValueMutRef, WidthInt, Word};
 use std::fmt::Write;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -194,6 +194,18 @@ fn hex_digit_value(digit: u8) -> Result<u8, ParseIntError> {
     Ok(value)
 }
 
+impl From<std::num::ParseIntError> for ParseIntError {
+    fn from(e: std::num::ParseIntError) -> Self {
+        let kind = match e.kind() {
+            std::num::IntErrorKind::NegOverflow | std::num::IntErrorKind::PosOverflow => {
+                IntErrorKind::ExceedsWidth
+            }
+            _ => IntErrorKind::InvalidDigit,
+        };
+        ParseIntError { kind }
+    }
+}
+
 /// Converts number string into bit vector value. Similar to `from_str_radix` in the Rust standard library.
 pub(crate) fn from_str_radix(
     value: &str,
@@ -233,31 +245,11 @@ pub(crate) fn from_str_radix(
     match out {
         [out] => {
             debug_assert!(width <= 64);
-            *out = match u64::from_str_radix(value, radix) {
-                Ok(v) => v,
-                Err(e) => {
-                    let kind = match e.kind() {
-                        std::num::IntErrorKind::NegOverflow
-                        | std::num::IntErrorKind::PosOverflow => IntErrorKind::ExceedsWidth,
-                        _ => IntErrorKind::InvalidDigit,
-                    };
-                    return Err(ParseIntError { kind });
-                }
-            };
+            *out = u64::from_str_radix(value, radix)?;
         }
         [lsb, msb] => {
             debug_assert!(width <= 128);
-            let out = match u128::from_str_radix(value, radix) {
-                Ok(v) => v,
-                Err(e) => {
-                    let kind = match e.kind() {
-                        std::num::IntErrorKind::NegOverflow
-                        | std::num::IntErrorKind::PosOverflow => IntErrorKind::ExceedsWidth,
-                        _ => IntErrorKind::InvalidDigit,
-                    };
-                    return Err(ParseIntError { kind });
-                }
-            };
+            let out = u128::from_str_radix(value, radix)?;
             *lsb = out as Word;
             *msb = (out >> Word::BITS) as Word;
         }
@@ -278,6 +270,9 @@ pub(crate) fn from_str_radix(
                 [b'+', rest @ ..] => rest,
                 _ => digits,
             };
+
+            // strip zeros
+            let digits = strip_zeros(digits);
 
             match radix {
                 2 => parse_base_2(digits, out, width)?,
@@ -304,7 +299,17 @@ pub(crate) fn from_str_radix(
     Ok(())
 }
 
-fn parse_base_16(digits: &[u8], out: &mut [Word]) -> Result<WidthInt, ParseIntError> {
+#[inline]
+fn strip_zeros(digits: &[u8]) -> &[u8] {
+    for (pos, &d) in digits.iter().enumerate() {
+        if d != b'0' {
+            return &digits[pos..];
+        }
+    }
+    &[]
+}
+
+fn parse_base_16(digits: &[u8], out: &mut [Word]) -> Result<(), ParseIntError> {
     let num_digits = digits.len();
     let words = (num_digits as u32 * BITS_PER_HEX_DIGIT).div_ceil(Word::BITS);
     let mut word = 0 as Word;
@@ -323,23 +328,26 @@ fn parse_base_16(digits: &[u8], out: &mut [Word]) -> Result<WidthInt, ParseIntEr
     }
     debug_assert_eq!(out_ii, 0);
     out[0] = word;
-    Ok(num_digits as u32 * BITS_PER_HEX_DIGIT)
+    Ok(())
 }
 
-fn parse_base_10(
-    _digits: &[u8],
-    _out: &mut [Word],
-    _max_width: WidthInt,
-) -> Result<WidthInt, ParseIntError> {
-    // let other = BitVecValue::
-    todo!()
+/// 10**19 fits into 64-bits, 10**20 does not
+const DIGITS_PER_WORD_10: usize = 19;
+const MAX_POW_WORD_10: Word = 10000000000000000000u64;
+
+fn parse_base_10(digits: &[u8], out: &mut [Word], width: WidthInt) -> Result<(), ParseIntError> {
+    let mut out = BitVecValueMutRef::new(width, out);
+    let factor = BitVecValue::from_u64(MAX_POW_WORD_10, width);
+    // we process in parts
+    for chunk in digits.chunks(DIGITS_PER_WORD_10) {
+        let tmp = out.mul(&factor);
+        let value = String::from_utf8_lossy(chunk).as_ref().parse()?;
+        out.assign(&tmp.add(&BitVecValue::from_u64(value, width)));
+    }
+    Ok(())
 }
 
-fn parse_base_2(
-    digits: &[u8],
-    out: &mut [Word],
-    max_width: WidthInt,
-) -> Result<WidthInt, ParseIntError> {
+fn parse_base_2(digits: &[u8], out: &mut [Word], max_width: WidthInt) -> Result<(), ParseIntError> {
     let width = digits.len() as WidthInt;
     // TODO: ignore zeros
     if width > max_width {
@@ -373,7 +381,7 @@ fn parse_base_2(
     }
     debug_assert_eq!(out_ii, 0);
     out[0] = word;
-    Ok(width)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -518,6 +526,18 @@ mod tests {
     fn test_to_from_dec_str_regression() {
         do_test_to_from_decimal_str("");
         do_test_to_from_decimal_str("1000000");
+    }
+
+    fn do_test_from_to_decimal_str(s: &str, width: WidthInt) {
+        let value = BitVecValue::from_str_radix(s, 10, width).unwrap();
+        let s_out = value.to_dec_str();
+        assert_eq!(s, s_out);
+    }
+
+    #[test]
+    fn test_from_to_dec_str_regression() {
+        let num_512 = "596886253802847701482483271715688189726967057213902170277048855852747875443594200622744233395250662615839263196891363475349438107920290669854978619157637";
+        do_test_from_to_decimal_str(num_512, 512);
     }
 
     proptest! {
