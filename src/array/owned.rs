@@ -736,7 +736,7 @@ enum SparseArrayIterImpl<'a> {
     BigBig(std::collections::hash_map::Iter<'a, BitVecValue, BitVecValue>),
 }
 
-impl<'a> Iterator for SparseArrayEntryIter<'a> {
+impl Iterator for SparseArrayEntryIter<'_> {
     type Item = (BitVecValue, BitVecValue);
 
     fn next(&mut self) -> Option<Self::Item> {

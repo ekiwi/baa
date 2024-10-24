@@ -26,13 +26,13 @@ impl<'a> From<&'a BitVecValue> for BitVecValueRef<'a> {
     }
 }
 
-impl<'a> std::fmt::Debug for BitVecValueRef<'a> {
+impl std::fmt::Debug for BitVecValueRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BitVecValueRef({})", self.to_bit_str())
     }
 }
 
-impl<'a, O: BitVecOps> PartialEq<O> for BitVecValueRef<'a> {
+impl<O: BitVecOps> PartialEq<O> for BitVecValueRef<'_> {
     fn eq(&self, other: &O) -> bool {
         if other.width() == self.width {
             self.is_equal(other)
@@ -42,7 +42,7 @@ impl<'a, O: BitVecOps> PartialEq<O> for BitVecValueRef<'a> {
     }
 }
 
-impl<'a> Eq for BitVecValueRef<'a> {}
+impl Eq for BitVecValueRef<'_> {}
 
 pub struct BitVecValueMutRef<'a> {
     pub(crate) width: WidthInt,
@@ -60,13 +60,13 @@ impl<'a> From<&'a mut BitVecValue> for BitVecValueMutRef<'a> {
         Self::new(value.width, value.words.as_mut())
     }
 }
-impl<'a> std::fmt::Debug for BitVecValueMutRef<'a> {
+impl std::fmt::Debug for BitVecValueMutRef<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "BitVecValueMutRef({})", self.to_bit_str())
     }
 }
 
-impl<'a> BitVecOps for BitVecValueRef<'a> {
+impl BitVecOps for BitVecValueRef<'_> {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -76,7 +76,7 @@ impl<'a> BitVecOps for BitVecValueRef<'a> {
     }
 }
 
-impl<'a> BitVecOps for BitVecValueMutRef<'a> {
+impl BitVecOps for BitVecValueMutRef<'_> {
     fn width(&self) -> WidthInt {
         self.width
     }
@@ -86,7 +86,7 @@ impl<'a> BitVecOps for BitVecValueMutRef<'a> {
     }
 }
 
-impl<'a> BitVecMutOps for BitVecValueMutRef<'a> {
+impl BitVecMutOps for BitVecValueMutRef<'_> {
     fn words_mut(&mut self) -> &mut [Word] {
         self.words
     }
