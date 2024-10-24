@@ -70,7 +70,6 @@ const WORD_HEX_DIGITS: u32 = Word::BITS / BITS_PER_HEX_DIGIT;
 const WORD_HEX_MASK: Word = ((1 as Word) << BITS_PER_HEX_DIGIT) - 1;
 
 /// Interprets the bits as a two's complement integer.
-
 pub(crate) fn to_hex_str_signed(values: &[Word], width: WidthInt) -> String {
     if is_neg(values, width) {
         let mut copy = Vec::from(values);
