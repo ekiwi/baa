@@ -141,7 +141,7 @@ pub trait BitVecOps {
         if non_zero_msb {
             None
         } else {
-            Some(self.words().iter().next().map(|w| *w).unwrap_or(0))
+            Some(self.words().iter().next().cloned().unwrap_or(0))
         }
     }
 

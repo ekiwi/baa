@@ -337,7 +337,7 @@ fn get_shift_amount(b: &[Word], width: WidthInt) -> Option<WidthInt> {
 
 #[inline]
 pub(crate) fn negate(dst: &mut [Word], b: &[Word], width: WidthInt) {
-    dst.clone_from_slice(&b);
+    dst.clone_from_slice(b);
     negate_in_place(dst, width);
 }
 

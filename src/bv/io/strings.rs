@@ -312,7 +312,7 @@ fn parse_base_16(digits: &[u8], out: &mut [Word]) -> Result<WidthInt, ParseIntEr
     let mut out_ii = (words - 1) as usize;
 
     // read from right to left
-    for (ii, cc) in digits.into_iter().enumerate() {
+    for (ii, cc) in digits.iter().enumerate() {
         let ii_rev = num_digits - ii - 1;
         if ii > 0 && ((ii_rev + 1) % WORD_HEX_DIGITS as usize) == 0 {
             out[out_ii] = word;
@@ -353,7 +353,7 @@ fn parse_base_2(
     let mut word = 0 as Word;
     let mut out_ii = (words - 1) as usize;
 
-    for (ii, cc) in digits.into_iter().enumerate() {
+    for (ii, cc) in digits.iter().enumerate() {
         let ii_rev = width as usize - ii - 1;
         if ii > 0 && ((ii_rev + 1) % Word::BITS as usize) == 0 {
             out[out_ii] = word;

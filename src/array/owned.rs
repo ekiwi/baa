@@ -223,10 +223,7 @@ impl From<&[u8]> for DenseArrayValue {
         let num_elements = num_elements_from_index_width(index_width);
         let mut data: Vec<u8> = values.into();
         // pad with zeros if possible
-        let padding = num_elements - data.len();
-        for _ in 0..padding {
-            data.push(0);
-        }
+        data.resize(num_elements, 0);
         data.shrink_to_fit();
         Self {
             index_width,
@@ -242,10 +239,7 @@ impl From<&[u64]> for DenseArrayValue {
         let num_elements = num_elements_from_index_width(index_width);
         let mut data: Vec<u64> = values.into();
         // pad with zeros if possible
-        let padding = num_elements - data.len();
-        for _ in 0..padding {
-            data.push(0);
-        }
+        data.resize(num_elements, 0);
         data.shrink_to_fit();
         Self {
             index_width,
@@ -265,7 +259,7 @@ enum DenseArrayImpl {
 }
 
 /// 1 GiB max for a dense array, otherwise something is fishy!
-const DENSE_ARRAY_MAX_BYTES: usize = 1 * 1024 * 1024 * 1024;
+const DENSE_ARRAY_MAX_BYTES: usize = 1024 * 1024 * 1024;
 
 fn approx_dense_storage_size(index_width: WidthInt, data_width: WidthInt) -> usize {
     let elements = 1usize << index_width;
@@ -510,9 +504,9 @@ impl From<&DenseArrayValue> for SparseArrayValue {
                 let mut out = SparseArrayValue::new(value.index_width(), &bv_default);
 
                 // find all indices that do not carry the default value
-                for bit in 0..value.num_elements() {
-                    if data[bit] != default {
-                        out.store_u64_u64(bit as u64, data[bit] as u64);
+                for (bit, &data) in data.iter().enumerate() {
+                    if data != default {
+                        out.store_u64_u64(bit as u64, data as u64);
                     }
                 }
                 out
@@ -520,8 +514,8 @@ impl From<&DenseArrayValue> for SparseArrayValue {
             DenseArrayImpl::U64(data) => {
                 // find default value
                 let mut count = HashMap::<u64, usize>::new();
-                for bit in 0..value.num_elements() {
-                    *count.entry(data[bit]).or_insert(0) += 1;
+                for &data in data.iter() {
+                    *count.entry(data).or_insert(0) += 1;
                     if count.len() > MAX_HASH_TABLE_SIZE_FOR_DEFAULT_SEARCH {
                         // if our hash table is exploding in size
                         // => give up and just use the data we have collected so far
@@ -537,9 +531,9 @@ impl From<&DenseArrayValue> for SparseArrayValue {
                 let mut out = SparseArrayValue::new(value.index_width(), &bv_default);
 
                 // find all indices that do not carry the default value
-                for bit in 0..value.num_elements() {
-                    if data[bit] != default {
-                        out.store_u64_u64(bit as u64, data[bit]);
+                for (bit, &data) in data.iter().enumerate() {
+                    if data != default {
+                        out.store_u64_u64(bit as u64, data);
                     }
                 }
                 out
