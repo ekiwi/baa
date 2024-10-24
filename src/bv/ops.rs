@@ -76,6 +76,11 @@ pub trait BitVecOps {
         crate::bv::io::strings::to_hex_str(self.words(), self.width())
     }
 
+    /// Convert to a string of a decimal number. No leading zeros.
+    fn to_dec_str(&self) -> String {
+        crate::bv::io::strings::to_dec_str(self.words(), self.width())
+    }
+
     /// Convert to a string of hex characters with a `-` if the value is negative.
     fn to_hex_str_signed(&self) -> String {
         crate::bv::io::strings::to_hex_str_signed(self.words(), self.width())

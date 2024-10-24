@@ -4,6 +4,7 @@
 
 use crate::bv::arithmetic::{is_neg, negate_in_place};
 use crate::{WidthInt, Word};
+use std::fmt::Write;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseIntError {
@@ -116,7 +117,53 @@ fn to_hex_str_internal(values: &[Word], width: WidthInt, mut out: String) -> Str
     out
 }
 
+pub(crate) fn to_dec_str(values: &[Word], width: WidthInt) -> String {
+    let out = String::with_capacity((width * 3 / 10) as usize);
+    to_dec_str_internal(values, out)
+}
+
+/// Returns the number of lsb words that are non-zero
+#[inline]
+fn words_used(words: &[Word]) -> usize {
+    let mut len = words.len();
+    for &w in words.iter().rev() {
+        if w != 0 {
+            return len;
+        }
+        len -= 1;
+    }
+    0 // all words are zero
+}
+
+#[inline]
+fn words_to_u128(words: &[Word]) -> u128 {
+    debug_assert!(words.len() >= 2);
+    debug_assert_eq!(Word::BITS * 2, u128::BITS);
+    ((words[1] as u128) << Word::BITS) | words[0] as u128
+}
+
+fn to_dec_str_internal(values: &[Word], mut out: String) -> String {
+    // see how many words are actually used
+    let words_used = words_used(values);
+
+    match words_used {
+        0 => out.push('0'),
+        1 => write!(out, "{}", values[0]).unwrap(),
+        2 => write!(out, "{}", words_to_u128(values)).unwrap(),
+        _ => to_dec_str_wide(&values[0..words_used], &mut out),
+    }
+    out
+}
+
+fn to_dec_str_wide(_words: &[Word], _out: &mut str) {
+    todo!()
+}
+
 pub(crate) fn determine_width_from_str_radix(value: &str, radix: u32) -> WidthInt {
+    debug_assert!(
+        radix == 2 || radix == 16,
+        "only works for 2 or 16 bit basis"
+    );
     let starts_with_minus = value.starts_with('-');
     let num_digits = match value.as_bytes() {
         [] => 0,
@@ -166,51 +213,80 @@ pub(crate) fn from_str_radix(
         None => (false, value),
     };
 
+    // special handling for 0-bit strings
+    if width == 0 {
+        if value == "0" {
+            return Ok(());
+        } else {
+            return Err(ParseIntError {
+                kind: IntErrorKind::ExceedsWidth,
+            });
+        }
+    }
+
     if value.is_empty() {
         return Err(ParseIntError {
             kind: IntErrorKind::InvalidDigit,
         });
     }
 
-    // use Rust standard parsing infrastructure when the result needs to fit into a u64
-    if let [out] = out {
-        debug_assert!(width <= 64);
-        *out = match u64::from_str_radix(value, radix) {
-            Ok(v) => v,
-            Err(e) => {
-                let kind = match e.kind() {
-                    std::num::IntErrorKind::NegOverflow | std::num::IntErrorKind::PosOverflow => {
-                        IntErrorKind::ExceedsWidth
-                    }
-                    _ => IntErrorKind::InvalidDigit,
-                };
-                return Err(ParseIntError { kind });
-            }
-        };
-    } else {
-        debug_assert_eq!(width.div_ceil(Word::BITS) as usize, out.len());
+    // use Rust standard parsing infrastructure when the result needs to fit into a u64 or u128
+    match out {
+        [out] => {
+            debug_assert!(width <= 64);
+            *out = match u64::from_str_radix(value, radix) {
+                Ok(v) => v,
+                Err(e) => {
+                    let kind = match e.kind() {
+                        std::num::IntErrorKind::NegOverflow
+                        | std::num::IntErrorKind::PosOverflow => IntErrorKind::ExceedsWidth,
+                        _ => IntErrorKind::InvalidDigit,
+                    };
+                    return Err(ParseIntError { kind });
+                }
+            };
+        }
+        [lsb, msb] => {
+            debug_assert!(width <= 128);
+            let out = match u128::from_str_radix(value, radix) {
+                Ok(v) => v,
+                Err(e) => {
+                    let kind = match e.kind() {
+                        std::num::IntErrorKind::NegOverflow
+                        | std::num::IntErrorKind::PosOverflow => IntErrorKind::ExceedsWidth,
+                        _ => IntErrorKind::InvalidDigit,
+                    };
+                    return Err(ParseIntError { kind });
+                }
+            };
+            *lsb = out as Word;
+            *msb = (out >> Word::BITS) as Word;
+        }
+        _ => {
+            debug_assert_eq!(width.div_ceil(Word::BITS) as usize, out.len());
 
-        // use our own custom implementation for larger sizes
-        // treat string as bytes
-        let digits = value.as_bytes();
+            // use our own custom implementation for larger sizes
+            // treat string as bytes
+            let digits = value.as_bytes();
 
-        // strip '+'
-        let digits = match digits {
-            [b'+'] => {
-                return Err(ParseIntError {
-                    kind: IntErrorKind::InvalidDigit,
-                });
-            }
-            [b'+', rest @ ..] => rest,
-            _ => digits,
-        };
+            // strip '+'
+            let digits = match digits {
+                [b'+'] => {
+                    return Err(ParseIntError {
+                        kind: IntErrorKind::InvalidDigit,
+                    });
+                }
+                [b'+', rest @ ..] => rest,
+                _ => digits,
+            };
 
-        match radix {
-            2 => parse_base_2(digits, out, width)?,
-            10 => parse_base_10(digits, out, width)?,
-            16 => parse_base_16(digits, out)?,
-            _ => todo!("Implement support for base {radix}. Currently the following bases are available: 2, 10, 16"),
-        };
+            match radix {
+                2 => parse_base_2(digits, out, width)?,
+                10 => parse_base_10(digits, out, width)?,
+                16 => parse_base_16(digits, out)?,
+                _ => todo!("Implement support for base {radix}. Currently the following bases are available: 2, 10, 16"),
+            };
+        }
     }
 
     // TODO: check width
@@ -252,9 +328,9 @@ fn parse_base_16(digits: &[u8], out: &mut [Word]) -> Result<WidthInt, ParseIntEr
 }
 
 fn parse_base_10(
-    digits: &[u8],
-    out: &mut [Word],
-    max_width: WidthInt,
+    _digits: &[u8],
+    _out: &mut [Word],
+    _max_width: WidthInt,
 ) -> Result<WidthInt, ParseIntError> {
     // let other = BitVecValue::
     todo!()
@@ -305,6 +381,7 @@ fn parse_base_2(
 mod tests {
     use super::*;
     use crate::bv::owned::value_vec_zeros;
+    use crate::{BitVecOps, BitVecValue};
     use proptest::proptest;
 
     fn do_test_from_to_bit_str(s: &str) {
@@ -431,6 +508,19 @@ mod tests {
         assert_eq!(to_hex_str(&input, 64), "0aaaa0a0aaa0aaaa");
     }
 
+    fn do_test_to_from_decimal_str(s: &str) {
+        let expected = BitVecValue::from_bit_str(s).unwrap();
+        let dec_str = expected.to_dec_str();
+        let actual = BitVecValue::from_str_radix(&dec_str, 10, expected.width).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_to_from_dec_str_regression() {
+        do_test_to_from_decimal_str("");
+        do_test_to_from_decimal_str("1000000");
+    }
+
     proptest! {
         #[test]
         fn test_from_to_bit_str(s in "(([-+])?[01]+)|()") {
@@ -439,6 +529,10 @@ mod tests {
         #[test]
         fn test_from_to_hex_str(s in "(([-+])?[01a-fA-F]+)|()") {
             do_test_from_to_hex_str(&s);
+        }
+        #[test]
+        fn test_to_from_decimal_str(s in "(([-+])?[01]+)|()") {
+            do_test_to_from_decimal_str(&s);
         }
     }
 }
